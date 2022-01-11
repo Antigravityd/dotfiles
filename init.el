@@ -42,6 +42,9 @@
 (require 'use-package)
 (setq use-package-always-ensure t)
 
+(package-install 'quelpa-use-package)
+(require 'quelpa-use-package)
+
 (use-package auto-package-update
   :custom
   (auto-package-update-interval 7)
@@ -168,7 +171,8 @@
 
 (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
 (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-(add-to-list 'org-structure-template-alist '("py" . "src python")))
+(add-to-list 'org-structure-template-alist '("py" . "src python"))
+(add-to-list 'org-structure-template-alist '("cp" . "src C++")))
 
 (defun dnw/org-babel-tangle-config ()
   (when (string-equal (buffer-file-name)
@@ -267,14 +271,36 @@
   :custom
   (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
-(setq TeX-auto-save t)
-(setq TeX-parse-self t)
-(setq-default TeX-master nil)
-(add-hook 'LaTeX-mode-hook 'visual-line-mode)
-(add-hook 'LaTeX-mode-hook 'flyspell-mode)
-(add-hook 'LaTeX-mode-hook 'LaTeX-math-mode)
-(add-hook 'LaTeX-mode-hook 'turn-on-reftex)
-(setq reftex-plug-into-AUCTeX t)
-(setq TeX-view-program-selection '((output-pdf "Zathura")))
+(use-package tex
+  :ensure auctex
+  :config
+  (setq TeX-auto-save t)
+  (setq TeX-parse-self t)
+  (setq-default TeX-master nil)
+  (add-hook 'LaTeX-mode-hook 'visual-line-mode)
+  (add-hook 'LaTeX-mode-hook 'flyspell-mode)
+  (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode)
+  (add-hook 'LaTeX-mode-hook 'turn-on-reftex)
+  (setq reftex-plug-into-AUCTeX t)
+  (setq TeX-view-program-selection '((output-pdf "Zathura"))))
+
+(use-package plz
+  :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
+
+(use-package ement
+  :quelpa (ement :fetcher github :repo "alphapapa/ement.el"))
 
 (setq gc-cons-threshold (* 20 1000 1000))
+(custom-set-variables
+ ;; custom-set-variables was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ '(package-selected-packages
+   '(ts ement plz quelpa-use-package which-key visual-fill-column use-package smartparens rainbow-delimiters org-roam org-bullets no-littering magit lsp-ui lsp-ivy ivy-rich hydra helpful doom-themes doom-modeline dired-single dash-functional counsel-projectile company-box auto-package-update auctex all-the-icons-dired)))
+(custom-set-faces
+ ;; custom-set-faces was added by Custom.
+ ;; If you edit it by hand, you could mess it up, so be careful.
+ ;; Your init file should contain only one such instance.
+ ;; If there is more than one, they won't work right.
+ )

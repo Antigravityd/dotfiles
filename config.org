@@ -88,6 +88,9 @@ Declare which archives to use, syncing them on start. Always-ensure downloads ne
   (require 'use-package)
   (setq use-package-always-ensure t)
 
+  (package-install 'quelpa-use-package)
+  (require 'quelpa-use-package)
+
 #+end_src
 
 ** Auto-Updates
@@ -307,19 +310,20 @@ Evaluation of code blocks & abbreviated syntax for generating them.
 
 #+begin_src emacs-lisp
 
-  (with-eval-after-load 'org 
-    (org-babel-do-load-languages
-     'org-babel-load-languages
-     '((emacs-lisp . t)
-       (python . t)))
+      (with-eval-after-load 'org 
+        (org-babel-do-load-languages
+         'org-babel-load-languages
+         '((emacs-lisp . t)
+           (python . t)))
 
-  (setq org-confirm-babel-evaluate nil)
+      (setq org-confirm-babel-evaluate nil)
 
-  (require 'org-tempo)
+      (require 'org-tempo)
 
-  (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
-  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-  (add-to-list 'org-structure-template-alist '("py" . "src python")))
+      (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+      (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+      (add-to-list 'org-structure-template-alist '("py" . "src python"))
+      (add-to-list 'org-structure-template-alist '("cp" . "src C++")))
 
 #+end_src
 
@@ -491,20 +495,35 @@ Helps make Emacs aware of project structure like makefiles and .gitignore
 Powerful LaTeX editing. Display previews with Zathura using C-c C-c to compile; C-c C-v to view. Subsequent calls to C-c C-c automatically update the Zathura window.
 
 #+begin_src emacs-lisp
-  
-  (setq TeX-auto-save t)
-  (setq TeX-parse-self t)
-  (setq-default TeX-master nil)
-  (add-hook 'LaTeX-mode-hook 'visual-line-mode)
-  (add-hook 'LaTeX-mode-hook 'flyspell-mode)
-  (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode)
-  (add-hook 'LaTeX-mode-hook 'turn-on-reftex)
-  (setq reftex-plug-into-AUCTeX t)
-  (setq TeX-view-program-selection '((output-pdf "Zathura")))
+
+  (use-package tex
+    :ensure auctex
+    :config
+    (setq TeX-auto-save t)
+    (setq TeX-parse-self t)
+    (setq-default TeX-master nil)
+    (add-hook 'LaTeX-mode-hook 'visual-line-mode)
+    (add-hook 'LaTeX-mode-hook 'flyspell-mode)
+    (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode)
+    (add-hook 'LaTeX-mode-hook 'turn-on-reftex)
+    (setq reftex-plug-into-AUCTeX t)
+    (setq TeX-view-program-selection '((output-pdf "Zathura"))))
 
 #+end_src
 
 * Runtime Performance
+
+* Ement (Matrix Client)
+
+#+begin_src emacs-lisp
+
+  (use-package plz
+    :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
+
+  (use-package ement
+    :quelpa (ement :fetcher github :repo "alphapapa/ement.el"))
+
+#+end_src
 
 #+begin_src emacs-lisp
 
