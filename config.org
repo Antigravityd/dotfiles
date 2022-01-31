@@ -1,3 +1,4 @@
+
 #+title DNW's GNU Emacs Configuration
 #+PROPERTY: header-args:emacs-lisp :tangle ./init.el
 
@@ -21,7 +22,20 @@ Increase RAM footprint on startup to reduce load time. Display load time as well
 #+end_src
 
 
+* General Keybinds
 
+** Text Editing
+
+Indent region; set TAB to complete in right circumstance
+
+#+begin_src emacs-lisp
+
+  (global-set-key (kbd "C->") 'indent-rigidly-right-to-tab-stop)
+  (global-set-key (kbd "C-<") 'indent-rigidly-left-to-tab-stop)
+
+  (setq tab-always-indent 'complete)
+
+#+end_src
 
 * Basic Configuration UI
 
@@ -45,9 +59,11 @@ Noto Emoji is the fallback here.
 
 #+begin_src emacs-lisp
 
-  (set-face-attribute 'default nil :font "Liberation Mono" :height 130)
+  (set-face-attribute 'default nil :font "Liberation Mono")
   (set-fontset-font "fontset-default" nil
-                    (font-spec :size 13 :name "Noto Emoji"))
+                    (font-spec :name "Noto"))
+  (set-fontset-font "fontset-default" nil
+                    (font-spec :name "Font Awesome"))
 
 #+end_src
 
@@ -68,7 +84,15 @@ Display cursor position on the modeline, and line numbers left of the buffer. Ex
 
 #+end_src
 
-#+RESULTS:
+** Transparency
+
+#+begin_src emacs-lisp
+
+  (set-frame-parameter (selected-frame) 'alpha '(85 85))
+
+  (add-to-list 'default-frame-alist '(alpha 85 85))
+
+#+end_src
 
 * Package Management
 
@@ -85,11 +109,16 @@ Declare which archives to use, syncing them on start. Always-ensure downloads ne
   (unless package-archive-contents
     (package-refresh-contents))
 
-  (require 'use-package)
+  (eval-when-compile
+    (require 'use-package))
+
   (setq use-package-always-ensure t)
 
-  (package-install 'quelpa-use-package)
-  (require 'quelpa-use-package)
+  (add-to-list 'load-path "/home/dnw/Code/PHYTS/phits-mode")
+  (require 'phits-mode)
+
+  (add-to-list 'auto-mode-alist '("\\.inp\\'" . phits-mode))
+;;  (add-to-list 'auto-mode-alist '("\\.out\\'" . phits-mode))
 
 #+end_src
 
@@ -110,6 +139,21 @@ Prompt to update Emacs packages weekly.
 
 #+end_src
 
+* Path from Shell
+
+Binaries on the zsh path become part of the Emacs path automatically.
+
+#+begin_src emacs-lisp
+
+  (use-package exec-path-from-shell
+
+    :init
+    (setq exec-path-from-shell-variables '("PATH" "MANPATH" "PHITSPATH"))
+    (when (memq window-system '(mac ns x))
+      (exec-path-from-shell-initialize)))
+
+#+end_src
+
 * No Littering!
 
 Write backups and autosaves to .emacs.d, instead of strewing them across the filesystem.
@@ -123,52 +167,108 @@ Write backups and autosaves to .emacs.d, instead of strewing them across the fil
 
 #+end_src
 
+* Completion Framework
 
-* Ivy (Command Completion)
+** Vertico (Minibuffer UI)
 
 #+begin_src emacs-lisp
 
-  (use-package ivy
-    :diminish
-    :bind (("C-s" . swiper)
-           :map ivy-minibuffer-map
-           ("TAB" . ivy-alt-done)
-           ("C-l" . ivy-alt-done)
-           ("C-j" . ivy-next-line)
-           ("C-k" . ivy-previous-line)
-           :map ivy-switch-buffer-map
-           ("C-k" . ivy-previous-line)
-           ("C-l" . ivy-done)
-           ("C-d" . ivy-switch-buffer-kill)
-           :map ivy-reverse-i-search-map
-           ("C-k" . ivy-previous-line)
-           ("C-d" . ivy-reverse-i-search-kill))
-    :config
-    (ivy-mode 1))
+  (use-package vertico
+    :init (vertico-mode)
+    :custom (vertico-cycle t))
 
-  (use-package ivy-rich
-    :after ivy 
+#+end_src
+
+** Corfu (At-Point UI)
+
+#+begin_src emacs-lisp
+
+  (use-package corfu
+    :custom (corfu-cycle t)
+    :init (corfu-global-mode))
+
+#+end_src
+
+*** Kind-Icon (Corfu Menu Sugar)
+
+#+begin_src emacs-lisp
+
+  ;; (use-package kind-icon
+  ;;   :ensure t
+  ;;   :after corfu
+  ;;   :custom
+  ;;   (kind-icon-default-face 'corfu-default) ; to compute blended backgrounds correctly
+  ;;   :config
+  ;;   (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
+
+  ;; Doesn't work :(
+#+end_src
+
+** Orderless (Candidate Filtering)
+
+#+begin_src emacs-lisp
+
+  (use-package orderless
     :init
-    (ivy-rich-mode 1))
+    (setq completion-styles '(orderless)
+          completion-category-defaults nil
+          completion-category-overrides '((file (styles . (partial-completion))))))
 
 #+end_src
 
-The Counsel UI is prettier.
+** Consult (Completion Command Alternatives)
 
 #+begin_src emacs-lisp
 
-  (use-package counsel
-    :bind (("M-x" . counsel-M-x)
-           ("C-x b" . counsel-ibuffer)
-           ("C-x C-f" . counsel-find-file)
-           :map minibuffer-local-map
-           ("C-r" . 'counsel-minibuffer-history)))
+      (use-package consult
+        :bind (("C-s" . consult-line)
+               ("C-r" . consult-history))
+        :custom (completion-in-region-function #'consult-completion-in-region))
 
 #+end_src
 
+** Marginalia (Completion Annotations)
+
+#+begin_src emacs-lisp
+
+  (use-package marginalia
+    :after vertico
+    :custom
+    (marginalia-annotators '(marginalia-annotators-heavy marginalia-annotators-light nil))
+    :init (marginalia-mode))
+
+#+end_src
+
+** Dabbrev
+
+#+begin_src emacs-lisp
+
+  (use-package dabbrev
+    :bind (("M-/" . dabbrev-completion)
+           ("C-M-/" . dabbrev-expand)))
+
+#+end_src
+
+** Embark at some point?
+
+* Auto-Insert
+
+File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d/insert/=) on opening file type.
+
+#+begin_src emacs-lisp
+
+  (use-package autoinsert
+    :hook (find-file . auto-insert)
+    :config
+    (setq auto-insert t)
+    (setq auto-insert-query nil)
+    (auto-insert-mode 1)
+    (setq auto-insert-directory "~/emacs.d/insert/"))
+
+#+end_src
 * Helpful (Better Documentation)
 
-Using M-x /documentation command/ defaults to the much better counsel/helpful version. 
+Using /documentation command/ defaults to the much better helpful version.
 
 #+begin_src emacs-lisp
 
@@ -178,9 +278,9 @@ Using M-x /documentation command/ defaults to the much better counsel/helpful ve
     (counsel-describe-function-function #'helpful-callable)
     (counsel-describe-variable-function #'helpful-variable)
     :bind
-    ([remap describe-function] . counsel-describe-function)
+    ([remap describe-function] . helpful-function)
     ([remap describe-command] . helpful-command)
-    ([remap describe-variable] . counsel-describe-variable)
+    ([remap describe-variable] . helpful-variable)
     ([remap describe-key] . helpful-key))
 
 #+end_src
@@ -197,7 +297,9 @@ A prettier and more functional modeline. All-the-icons is required for e.g. the 
     :ensure t
     :init (doom-modeline-mode 1))
 
-  (use-package all-the-icons)
+  (use-package diminish)
+
+  (use-package all-the-icons) ;; requires M-x all-the-icons-install-fonts on first load
 
 #+end_src
 
@@ -212,14 +314,40 @@ These have better integration with package-spawned buffers. And are quite tastef
 
 #+end_src
 
-** Rainbow Delimiters
+** Parenthesis Management
 
-No more parenthesis hell!
+Color pairs of region-marking characters, automatically insert and delete matching ones, & highlight matching parens. 
 
 #+begin_src emacs-lisp
 
   (use-package rainbow-delimiters
-    :hook (prog-mode . rainbow-delimiters-mode))
+    :hook ((prog-mode . rainbow-delimiters-mode)
+           (LaTeX-mode . rainbow-delimiters-mode)))
+
+  (use-package smartparens
+    :hook ((prog-mode . smartparens-mode)
+           (LaTeX-mode . smartparens-mode))
+    :config
+    (require 'smartparens-latex))
+
+  (use-package paren
+    :config
+    (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
+    (show-paren-mode 1))
+
+#+end_src
+
+** Whitespace Management
+
+Require final newline & trim trailing whitespace automatically.
+
+#+begin_src emacs-lisp
+
+  (setq require-final-newline t)
+
+  (use-package ws-butler
+    :hook ((text-mode . ws-butler-mode)
+           (prog-mode . ws-butler-mode)))
 
 #+end_src
 
@@ -261,30 +389,39 @@ Nicer collapsed heading indicator, document-like variable pitch font, etc.
 
 ** Prettier Headings
 
-Font scaling based on tree depth with some typographical subtleties
+Font scaling based on tree depth with some typographical subtleties.
 
 #+begin_src emacs-lisp
 
-  (use-package org-bullets
-    :after org
-    :hook (org-mode . org-bullets-mode))
-  (with-eval-after-load 'org-faces (dolist (face '((org-level-1 . 1.2)
-                                                   (org-level-2 . 1.1)
-                                                   (org-level-3 . 1.05)
-                                                   (org-level-4 . 1.0)
-                                                   (org-level-5 . 1.1)
-                                                   (org-level-6 . 1.1)
-                                                   (org-level-7 . 1.1)
-                                                   (org-level-8 . 1.1)))
-                                     (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
+    (use-package org-bullets
+      :after org
+      :hook (org-mode . org-bullets-mode))
+    (with-eval-after-load 'org-faces (dolist (face '((org-level-1 . 1.2)
+                                                     (org-level-2 . 1.1)
+                                                     (org-level-3 . 1.05)
+                                                     (org-level-4 . 1.0)
+                                                     (org-level-5 . 1.0)
+                                                     (org-level-6 . 1.0)
+                                                     (org-level-7 . 1.0)
+                                                     (org-level-8 . 1.0)))
+                                       (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
 
-                        (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-                        (set-face-attribute 'org-code nil :inherit '(shadow fixed-pitch))
-                        (set-face-attribute 'org-table nil :inherit '(shadow fixed-pitch))
-                        (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
-                        (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
-                        (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
-                        (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
+                          (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+                          (set-face-attribute 'org-code nil :inherit '(shadow fixed-pitch))
+                          (set-face-attribute 'org-table nil :inherit '(shadow fixed-pitch))
+                          (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+                          (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+                          (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+                          (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
+
+  (setq org-hide-emphasis-markers t)
+
+  (use-package org-appear
+    :hook (org-mode . org-appear-mode))
+
+  (font-lock-add-keywords 'org-mode
+                          '(("^ *\\([-]\\) "
+                             (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
 
 #+end_src
 
@@ -314,7 +451,8 @@ Evaluation of code blocks & abbreviated syntax for generating them.
         (org-babel-do-load-languages
          'org-babel-load-languages
          '((emacs-lisp . t)
-           (python . t)))
+           (python . t)
+           (fortran . t)))
 
       (setq org-confirm-babel-evaluate nil)
 
@@ -323,7 +461,8 @@ Evaluation of code blocks & abbreviated syntax for generating them.
       (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
       (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
       (add-to-list 'org-structure-template-alist '("py" . "src python"))
-      (add-to-list 'org-structure-template-alist '("cp" . "src C++")))
+      (add-to-list 'org-structure-template-alist '("ft" . "src fortran")))
+
 
 #+end_src
 
@@ -332,6 +471,7 @@ Evaluation of code blocks & abbreviated syntax for generating them.
 Dispatches code blocks from an org file to places on disk. M-x org-babel-tangle to write, or add an auto-tangle hook as below for frequently edited config files. 
 
 #+begin_src emacs-lisp
+
   (defun dnw/org-babel-tangle-config ()
     (when (string-equal (buffer-file-name)
                         (expand-file-name "~/.emacs.d/config.org"))
@@ -349,25 +489,25 @@ The magic! Add additional capture templates here; for example, a "Structure" tem
 
 #+begin_src emacs-lisp
 
-  (use-package org-roam
-    :after org
-    :init
-    (setq org-roam-v2-ack t)
-    :custom
-    (org-roam-directory "~/Roam")
-    (org-roam-completion-everywhere t)
-    (org-roam-capture-templates
-     '(("d" "default" plain
-        "%?"
-        :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
-        :unnarowed t)))
-    :bind (("C-c n l" . org-roam-buffer-toggle)
-           ("C-c n f" . org-roam-node-find)
-           ("C-c n i" . org-roam-node-insert)
-           :map org-mode-map
-           ("C-M-i" . completion-at-point))
-    :config
-    (org-roam-setup))
+    (use-package org-roam
+      :ensure t
+      :init
+      (setq org-roam-v2-ack t)
+      :custom
+      (org-roam-directory "/home/dnw/Roam")
+      (org-roam-completion-everywhere t)
+      (org-roam-capture-templates
+       '(("d" "default" plain
+          "%?"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
+          :unnarowed t)))
+      :bind (("C-c n l" . org-roam-buffer-toggle)
+             ("C-c n f" . org-roam-node-find)
+             ("C-c n i" . org-roam-node-insert)
+             :map org-mode-map
+             ("C-M-i" . completion-at-point))
+      :config
+      (org-roam-db-autosync-mode))
 
 #+end_src
 
@@ -392,14 +532,6 @@ instead of needing to '&' every time.
 
 #+end_src
 
-New key to hide dotfiles.
-
-#+begin_src emacs-lisp
-
-  ;; TODO
-
-#+end_src
-
 * LSP-Mode
 
 VSCode's Language Server protocol; a standard for project management that turns Emacs into a full IDE.
@@ -408,28 +540,32 @@ VSCode's Language Server protocol; a standard for project management that turns 
 
 Create a breadcrumbs hook that enables a path listing header on LSP mode buffers.
 
-
 #+begin_src emacs-lisp
-
-  (defun dnw/lsp-mode-setup ()
-    (setq lsp-headerline-breadcrumb-segments '(path-to-project file symbols))
-    (lsp-headerline-breadcrumb-mode))
 
   (use-package lsp-mode
     :commands (lsp lsp-deferred)
-    :hook (lsp-mode . dnw/lsp-mode-setup)
+    :hook
+    ((LaTeX-mode) . lsp)
+    (lsp-completion-mode . dnw/lsp-completion)
     :init
     (setq lsp-keymap-prefix "C-c l")
+    (defun dnw/lsp-completion ()
+      (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
+            '(orderless)))
     :config
-    (lsp-enable-which-key-integration t))
+    (lsp-enable-which-key-integration t)
+    :custom
+    (lsp-completion-provider :none))
 
   (use-package lsp-ui
     :hook (lsp-mode . lsp-ui-mode)
     :custom
     (setq lsp-ui-doc-position 'bottom))
 
-  (use-package lsp-ivy
-    :after lsp)
+
+  (use-package flycheck
+    :defer t
+    :hook (lsp-mode . flycheck-mode))
 
 #+end_src
 
@@ -439,20 +575,27 @@ Use company-mode style point completions in LSP-mode
 
 #+begin_src emacs-lisp
 
-  (use-package company
-    :after lsp-mode
-    :hook (prog-mode . company-mode)
-    :bind
-    (:map company-active-map
-          ("<tab>" . company-complete-selection))
-    (:map lsp-mode-map
-          ("<tab>" . company-indent-or-complete-common))
-    :custom
-    (company-minimum-prefix-length 1)
-    (company-idle-delay 0.0))
+  ;; (use-package company
+  ;;   :after lsp-mode
+  ;;   :hook (prog-mode . company-mode)
+  ;;   :bind
+  ;;   (:map company-active-map
+  ;;         ("<tab>" . company-complete-selection))
+  ;;   (:map lsp-mode-map
+  ;;         ("<tab>" . company-indent-or-complete-common))
+  ;;   :custom
+  ;;   (company-minimum-prefix-length 1)
+  ;;   (company-idle-delay 0.0))
 
-  (use-package company-box
-    :hook (company-mode . company-box-mode))
+  ;; (eval-after-load 'company
+  ;;    '(add-to-list
+  ;;      'company-backends '(company-irony-c-headers
+  ;;                          company-irony
+  ;;                          company-rtags)))
+
+
+  ;; (use-package company-box
+  ;;   :hook (company-mode . company-box-mode))
 
 #+end_src
 
@@ -460,23 +603,23 @@ Use company-mode style point completions in LSP-mode
 
 ** Projectile
 
-Helps make Emacs aware of project structure like makefiles and .gitignore
+Helps make Emacs aware of project structure like makefiles and .gitignore. I don't really use this I don't think; I should learn.
 
 #+begin_src emacs-lisp
 
-  (use-package projectile
-    :diminish projectile-mode
-    :config (projectile-mode)
-    :custom ((projectile-completion-sustem 'ivy))
-    :bind-keymap
-    ("C-c p" . projectile-command-map)
-    :init
-    (when (file-directory-p "~/Code")
-      (setq projectile-project-search-path '("~/Code")))
-    (setq projectile-switch-project-action #'projectile-dired))
+  ;; (use-package projectile
+  ;;   :diminish projectile-mode
+  ;;   :config (projectile-mode)
+  ;;   :custom ((projectile-completion-system 'ivy))
+  ;;   :bind-keymap
+  ;;   ("C-c p" . projectile-command-map)
+  ;;   :init
+  ;;   (when (file-directory-p "~")
+  ;;     (setq projectile-project-search-path '("~")))
+  ;;   (setq projectile-switch-project-action #'projectile-dired))
 
-  (use-package counsel-projectile
-    :config (counsel-projectile-mode))
+  ;; (use-package counsel-projectile
+  ;;   :config (counsel-projectile-mode))
 
 #+end_src
 
@@ -490,6 +633,22 @@ Helps make Emacs aware of project structure like makefiles and .gitignore
     (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
 
 #+end_src
+
+* Yasnippet
+
+Code templates.
+
+#+begin_src emacs-lisp
+
+  ;; (use-package yasnippet
+  ;;   :hook ((prog-mode LaTeX-mode) . yas-minor-mode)
+  ;;   :config
+  ;;   (yas-reload-all))
+
+  ;; (use-package yasnippet-snippets)
+
+#+end_src
+
 * AUCTeX
 
 Powerful LaTeX editing. Display previews with Zathura using C-c C-c to compile; C-c C-v to view. Subsequent calls to C-c C-c automatically update the Zathura window.
@@ -511,24 +670,98 @@ Powerful LaTeX editing. Display previews with Zathura using C-c C-c to compile; 
 
 #+end_src
 
+* Terminal Modes
+
+** Term
+
+Default to zsh.
+
+#+begin_src emacs-lisp
+
+  (use-package term
+    :commands term
+    :config
+    (setq explicit-shell-file-name "zsh"))
+
+  (use-package eterm-256color
+    :hook (term-mode . eterm-256color-mode))
+
+#+end_src
+
+** Vterm
+
+TODO
+
+** Eshell
+
+TODO
+
+* ERC
+
+IRC client configuration & QOL changes.
+
+#+begin_src emacs-lisp
+
+  (setq
+   erc-nick "FlaminWalrus"
+   erc-user-full-name "Duncan W")
+
+  (global-set-key (kbd "C-c e")
+                  (lambda ()
+                    (interactive)
+                    (erc-tls :server "irc.libera.chat"
+                             :port "6697")))
+ 
+#+end_src
+
+* Elfeed
+
+RSS reader configuration. 
+
+#+begin_src emacs-lisp
+
+  (use-package elfeed
+    :hook elfeed
+    :config
+    (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
+          elfeed-show-entry-switch 'display-buffer)
+    :bind
+    ("C-x w" . elfeed ))
+
+  (setq elfeed-feeds
+        '("http://feeds.aps.org/rss/prdsuggestions.xml"
+          ;;"http://feeds.aps.org/rss/recent/physics.xml"
+          ))
+
+  ;; doesn't function. It'd be really nice to configure this from this orgfile
+  ;; (use-package elfeed-org
+  ;;   :config
+  ;;   (setq elfeed-show-entry-switch 'display-buffer)
+  ;;   (setq rmh-elfeed-org-files (list "/home/dnw/.emacs.d/feeds.org")))
+
+#+end_src
+
+* Parsers
+
+#+begin_src emacs-lisp
+
+  ;;(use-package bison-mode)
+  (add-to-list 'auto-mode-alist '("\\.g4\\'" . c-mode))
+
+#+end_src
+
+* Haskell
+
+#+begin_src emacs-lisp
+
+  (use-package haskell-mode) ;; figure out how to defer loading until .hs is opened?
+
+#+end_src
+
 * Runtime Performance
 
-* Ement (Matrix Client)
-
 #+begin_src emacs-lisp
 
-  (use-package plz
-    :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
-
-  (use-package ement
-    :quelpa (ement :fetcher github :repo "alphapapa/ement.el"))
+  (setq gc-cons-threshold (* 2 1000 1000))
 
 #+end_src
-
-#+begin_src emacs-lisp
-
-  (setq gc-cons-threshold (* 20 1000 1000))
-
-#+end_src
-
-
