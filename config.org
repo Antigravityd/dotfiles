@@ -1,10 +1,9 @@
-
 #+title DNW's GNU Emacs Configuration
 #+PROPERTY: header-args:emacs-lisp :tangle ./init.el
 
 * Startup Performance
 
-Increase RAM footprint on startup to reduce load time. Display load time as well. 
+Increase RAM footprint on startup to reduce load time. Display load time as well.
 
 #+begin_src emacs-lisp
 
@@ -18,6 +17,8 @@ Increase RAM footprint on startup to reduce load time. Display load time as well
              gcs-done))
 
   (add-hook 'emacs-startup-hook #'dnw/display-startup-time)
+
+  (server-start)
 
 #+end_src
 
@@ -34,16 +35,33 @@ Indent region; set TAB to complete in right circumstance
   (global-set-key (kbd "C-<") 'indent-rigidly-left-to-tab-stop)
 
   (setq tab-always-indent 'complete)
+  (setq align-to-tab-stop nil)
 
 #+end_src
 
 * Basic Configuration UI
 
+** Better Font
+
+Noto Emoji is the fallback here.
+
+#+begin_src emacs-lisp
+
+  ;; default-frame-alist works with --daemon
+
+  (add-to-list 'default-frame-alist
+               '(font . "Iosevka-10"))
+
+  (setf use-default-font-for-symbols nil)
+  (set-fontset-font t 'unicode "Noto Emoji" nil 'append)
+
+#+end_src
+
 ** Hide Ugly GUI Elements
 
 #+begin_src emacs-lisp
 
-  (setq inhibit-startup-message t) 
+  (setq inhibit-startup-message t)
 
   (menu-bar-mode -1)
   (tool-bar-mode -1)
@@ -53,23 +71,9 @@ Indent region; set TAB to complete in right circumstance
 
 #+end_src
 
-** Better Font
-
-Noto Emoji is the fallback here.
-
-#+begin_src emacs-lisp
-
-  (set-face-attribute 'default nil :font "Liberation Mono")
-  (set-fontset-font "fontset-default" nil
-                    (font-spec :name "Noto"))
-  (set-fontset-font "fontset-default" nil
-                    (font-spec :name "Font Awesome"))
-
-#+end_src
-
 ** Line Numbers
 
-Display cursor position on the modeline, and line numbers left of the buffer. Except where it's stupid. 
+Display cursor position on the modeline, and line numbers left of the buffer. Except where it's stupid.
 
 #+begin_src emacs-lisp
 
@@ -79,7 +83,11 @@ Display cursor position on the modeline, and line numbers left of the buffer. Ex
   ;; Disable in e.g. shell
   (dolist (mode '(org-mode-hook
                   term-mode-hook
-                  eshell-mode-hook))
+                  eshell-mode-hook
+                  Info-mode-hook
+                  ement-room-mode-hook
+                  elfeed-show-mode-hook
+                  pdf-mode-hook))
     (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
 #+end_src
@@ -88,9 +96,9 @@ Display cursor position on the modeline, and line numbers left of the buffer. Ex
 
 #+begin_src emacs-lisp
 
-  (set-frame-parameter (selected-frame) 'alpha '(85 85))
+  (set-frame-parameter (selected-frame) 'alpha '(100 100))
 
-  (add-to-list 'default-frame-alist '(alpha 85 85))
+  (add-to-list 'default-frame-alist '(alpha 100 100))
 
 #+end_src
 
@@ -102,7 +110,6 @@ Declare which archives to use, syncing them on start. Always-ensure downloads ne
 
   (require 'package)
   (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                           ("org" . "https://orgmode.org/elpa/")
                            ("elpa" . "https://elpa.gnu.org/packages/")))
 
   (package-initialize)
@@ -118,24 +125,7 @@ Declare which archives to use, syncing them on start. Always-ensure downloads ne
   (require 'phits-mode)
 
   (add-to-list 'auto-mode-alist '("\\.inp\\'" . phits-mode))
-;;  (add-to-list 'auto-mode-alist '("\\.out\\'" . phits-mode))
-
-#+end_src
-
-** Auto-Updates
-
-Prompt to update Emacs packages weekly.
-
-#+begin_src emacs-lisp
-
-  (use-package auto-package-update
-    :custom
-    (auto-package-update-interval 7)
-    (auto-package-update-prompt-before-update t)
-    (auto-package-update-hide-results t)
-    :config
-    (auto-package-update-maybe)
-    (auto-package-update-at-time "12:00"))
+  (add-to-list 'auto-mode-alist '("\\.out\\'" . phits-mode))
 
 #+end_src
 
@@ -148,7 +138,7 @@ Binaries on the zsh path become part of the Emacs path automatically.
   (use-package exec-path-from-shell
 
     :init
-    (setq exec-path-from-shell-variables '("PATH" "MANPATH" "PHITSPATH"))
+    (setq exec-path-from-shell-variables '("PATH" "MANPATH" "GUIX_PROFILE" "PHITSPATH"))
     (when (memq window-system '(mac ns x))
       (exec-path-from-shell-initialize)))
 
@@ -185,7 +175,7 @@ Write backups and autosaves to .emacs.d, instead of strewing them across the fil
 
   (use-package corfu
     :custom (corfu-cycle t)
-    :init (corfu-global-mode))
+    :init (global-corfu-mode))
 
 #+end_src
 
@@ -257,15 +247,92 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
 
 #+begin_src emacs-lisp
 
+  (defun dnw/prompt-date ()
+    (let ((date (read-string "Due date: "))
+                                            (now  (split-string (format-time-string "%e %B %Y" (current-time)))))
+                                        (cond ((equal date "")
+                                               (concat now))
+                                              ((equal (substring date 0 1) "+")
+                                               (concat (number-to-string (+ (string-to-number (car now))
+                                                                            (string-to-number (substring date 1))))
+                                                       " "
+                                                       (cadr now)
+                                                       " "
+                                                       (caddr now)))
+                                              ((= (length date) 2)
+                                               (concat date
+                                                       " "
+                                                       (cadr now)
+                                                       " "
+                                                       (caddr now))))))
+
+  (setq dnw/autoinsert-latex-presets
+        '(("Physics" . (nil "\\documentclass{article}\n\n"
+
+                            "\\usepackage[letterpaper]{geometry}\n"
+                            "\\usepackage{tgpagella}\n"
+                            "\\usepackage{amsmath}\n"
+                            "\\usepackage{siunitx}\n\n"
+
+
+                            "\\title{" (read-string "Title: ") "}\n"
+                            "\\author{Duncan Wilkie}\n"
+                            "\\date{" (dnw/prompt-date) "}\n\n"
+
+                            "\\begin{document}\n\n"
+
+                            "\\maketitle\n\n"
+
+                            -
+
+                            "\n\n\\end{document}"))
+          ("Math" . (nil "\\documentclass{article}\n\n"
+
+                         "\\usepackage[letterpaper]{geometry}\n"
+                         "\\usepackage{tgpagella}\n"
+                         "\\usepackage{amsmath}\n"
+                         "\\usepackage{amssymb}\n"
+                         "\\usepackage{amsthm}\n\n"
+
+                         "\\title{" (read-string "Title: ") "}\n"
+                         "\\author{Duncan Wilkie}\n"
+                         "\\date{" (dnw/prompt-date) "}\n\n"
+
+                         "\\begin{document}\n\n"
+
+                         "\\maketitle\n\n"
+
+                         -
+
+                         "\n\n\\end{document}"))
+          ("Default" . ("options, RET: " "\\documentclass[" str & 93 | -1 123
+                        (read-string "class: ")
+                        "}\n"
+                        ("package, %s: " "\\usepackage["
+                         (read-string "options, RET: ")
+                         & 93 | -1 123 str "}\n")
+                        _ "\n\\begin{document}\n"
+                        _ "\n\\end{document}"))))
+
   (use-package autoinsert
     :hook (find-file . auto-insert)
-    :config
+    :init
     (setq auto-insert t)
     (setq auto-insert-query nil)
-    (auto-insert-mode 1)
-    (setq auto-insert-directory "~/emacs.d/insert/"))
+    (auto-insert-mode t)
+    :config
+    (assoc-delete-all 'latex-mode auto-insert-alist)
+    (define-auto-insert 'latex-mode
+      (lambda ()
+        (let* ((presets (mapcar (lambda (pair)(car pair))
+                                dnw/autoinsert-latex-presets))
+               (choice (completing-read "Preset:" presets)))
+          (skeleton-insert (assoc choice dnw/autoinsert-latex-presets))))))
+
 
 #+end_src
+
+
 * Helpful (Better Documentation)
 
 Using /documentation command/ defaults to the much better helpful version.
@@ -305,35 +372,36 @@ A prettier and more functional modeline. All-the-icons is required for e.g. the 
 
 ** Set Theme
 
-These have better integration with package-spawned buffers. And are quite tasteful. 
+These have better integration with package-spawned buffers. And are quite tasteful.
 
 #+begin_src emacs-lisp
 
   (use-package doom-themes
-    :init (load-theme 'doom-dark+ t))
+    :init (load-theme 'doom-tomorrow-night t))
 
 #+end_src
 
 ** Parenthesis Management
 
-Color pairs of region-marking characters, automatically insert and delete matching ones, & highlight matching parens. 
+Color pairs of region-marking characters, automatically insert and delete matching ones, & highlight matching parens.
 
 #+begin_src emacs-lisp
 
-  (use-package rainbow-delimiters
-    :hook ((prog-mode . rainbow-delimiters-mode)
-           (LaTeX-mode . rainbow-delimiters-mode)))
+    (use-package rainbow-delimiters
+      :hook ((prog-mode . rainbow-delimiters-mode)
+             (LaTeX-mode . rainbow-delimiters-mode)))
 
-  (use-package smartparens
-    :hook ((prog-mode . smartparens-mode)
-           (LaTeX-mode . smartparens-mode))
-    :config
-    (require 'smartparens-latex))
+    (use-package smartparens
+      :hook ((prog-mode . smartparens-mode)
+             (LaTeX-mode . smartparens-mode)
+             (org-mode . smartparens-mode))
+      :config
+      (require 'smartparens-latex))
 
-  (use-package paren
-    :config
-    (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
-    (show-paren-mode 1))
+    (use-package paren
+      :config
+      (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
+      (show-paren-mode 1))
 
 #+end_src
 
@@ -382,8 +450,10 @@ Nicer collapsed heading indicator, document-like variable pitch font, etc.
   (use-package org
     :commands (org-capture org-agenda)
     :hook (org-mode . dnw/org-mode-setup)
+    :bind ("C-c C-x C-l" . org-latex-preview)
     :config
-    (setq org-ellipsis " ▼"))
+    (setq org-ellipsis " ▼")
+    (setq org-latex-create-formula-image-program 'imagemagick))
 
 #+end_src
 
@@ -393,26 +463,28 @@ Font scaling based on tree depth with some typographical subtleties.
 
 #+begin_src emacs-lisp
 
-    (use-package org-bullets
-      :after org
-      :hook (org-mode . org-bullets-mode))
-    (with-eval-after-load 'org-faces (dolist (face '((org-level-1 . 1.2)
-                                                     (org-level-2 . 1.1)
-                                                     (org-level-3 . 1.05)
-                                                     (org-level-4 . 1.0)
-                                                     (org-level-5 . 1.0)
-                                                     (org-level-6 . 1.0)
-                                                     (org-level-7 . 1.0)
-                                                     (org-level-8 . 1.0)))
-                                       (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
+  (use-package org-bullets
+    :after org
+    :hook (org-mode . org-bullets-mode))
 
-                          (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-                          (set-face-attribute 'org-code nil :inherit '(shadow fixed-pitch))
-                          (set-face-attribute 'org-table nil :inherit '(shadow fixed-pitch))
-                          (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
-                          (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
-                          (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
-                          (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
+  (with-eval-after-load 'org-faces (dolist (face '((org-level-1 . 1.2)
+                                                   (org-level-2 . 1.1)
+                                                   (org-level-3 . 1.05)
+                                                   (org-level-4 . 1.0)
+                                                   (org-level-5 . 1.0)
+                                                   (org-level-6 . 1.0)
+                                                   (org-level-7 . 1.0)
+                                                   (org-level-8 . 1.0)))
+                                     (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
+
+                        (set-face-attribute 'fixed-pitch nil :font "Iosevka" :weight 'regular :height 1.0)
+                        (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+                        (set-face-attribute 'org-code nil :inherit '(shadow fixed-pitch))
+                        (set-face-attribute 'org-table nil :inherit '(shadow fixed-pitch))
+                        (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+                        (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+                        (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+                        (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
 
   (setq org-hide-emphasis-markers t)
 
@@ -447,7 +519,7 @@ Evaluation of code blocks & abbreviated syntax for generating them.
 
 #+begin_src emacs-lisp
 
-      (with-eval-after-load 'org 
+      (with-eval-after-load 'org
         (org-babel-do-load-languages
          'org-babel-load-languages
          '((emacs-lisp . t)
@@ -468,7 +540,7 @@ Evaluation of code blocks & abbreviated syntax for generating them.
 
 ** Tangle
 
-Dispatches code blocks from an org file to places on disk. M-x org-babel-tangle to write, or add an auto-tangle hook as below for frequently edited config files. 
+Dispatches code blocks from an org file to places on disk. M-x org-babel-tangle to write, or add an auto-tangle hook as below for frequently edited config files.
 
 #+begin_src emacs-lisp
 
@@ -485,7 +557,7 @@ Dispatches code blocks from an org file to places on disk. M-x org-babel-tangle 
 
 ** Roam
 
-The magic! Add additional capture templates here; for example, a "Structure" template for a note on a mathematical structure, or a "Theorem" template for a note on a theorem, etc. 
+The magic! Add additional capture templates here; for example, a "Structure" template for a note on a mathematical structure, or a "Theorem" template for a note on a theorem, etc.
 
 #+begin_src emacs-lisp
 
@@ -496,11 +568,30 @@ The magic! Add additional capture templates here; for example, a "Structure" tem
       :custom
       (org-roam-directory "/home/dnw/Roam")
       (org-roam-completion-everywhere t)
+      (org-roam-db-node-include-function
+       (defun dnw/org-roam-include ()
+         (not (member "drill" (org-get-tags)))))
       (org-roam-capture-templates
        '(("d" "default" plain
           "%?"
           :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n")
-          :unnarowed t)))
+          :unnarowed t)
+         ("i" "idea" plain
+          "* Motivation\n\n%?\n\n* Similar Work\n\n* Feasibility\n\n* Implementation"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+filetags: Idea")
+          :unnarrowed t)
+         ("p" "project" plain
+          "* Description\n\n%?\n\n** Collaborators\n\n** Stack\n\n* Tasks"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+filetags: Project")
+          :unnarrowed t)
+         ("a" "article" plain
+          "* Summary\n\n%?\n\n* Context"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+filetags: Article")
+          :unnarrowed t)
+         ("m" "musing" plain
+          "* %?"
+          :if-new (file+head "%<%Y%m%d%H%M%S>-${slug}.org" "#+title: ${title}\n#+filetags: Musing")
+          :unnarrowed t)))
       :bind (("C-c n l" . org-roam-buffer-toggle)
              ("C-c n f" . org-roam-node-find)
              ("C-c n i" . org-roam-node-insert)
@@ -511,10 +602,30 @@ The magic! Add additional capture templates here; for example, a "Structure" tem
 
 #+end_src
 
+** Drill
+
+Use the space-repitition method to memorize information
+
+#+begin_src emacs-lisp
+
+  (use-package org-drill)
+
+#+end_src
+
+** Present
+
+Simple, minimalist presentations in org-mode
+
+#+begin_src emacs-lisp
+
+  (use-package org-present)
+
+#+end_src
+
 * Dired
 
 Make C-x C-j open dired at pwd. List directories first, and use all-the-icons to be pretty. Can be configured to use dired-open to use external file display programs by default
-instead of needing to '&' every time. 
+instead of needing to '&' every time.
 
 #+begin_src emacs-lisp
 
@@ -545,6 +656,7 @@ Create a breadcrumbs hook that enables a path listing header on LSP mode buffers
   (use-package lsp-mode
     :commands (lsp lsp-deferred)
     :hook
+    ((c-mode) . lsp)
     ((LaTeX-mode) . lsp)
     (lsp-completion-mode . dnw/lsp-completion)
     :init
@@ -660,16 +772,30 @@ Powerful LaTeX editing. Display previews with Zathura using C-c C-c to compile; 
     :config
     (setq TeX-auto-save t)
     (setq TeX-parse-self t)
-    (setq-default TeX-master nil)
+    (setq-default TeX-master t)
+    (setq LaTeX-command "latex -shell-escape")
     (add-hook 'LaTeX-mode-hook 'visual-line-mode)
     (add-hook 'LaTeX-mode-hook 'flyspell-mode)
     (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode)
     (add-hook 'LaTeX-mode-hook 'turn-on-reftex)
     (setq reftex-plug-into-AUCTeX t)
-    (setq TeX-view-program-selection '((output-pdf "Zathura"))))
+    (setq TeX-view-program-selection '((output-pdf "Zathura")))
+    (setq TeX-electric-sub-and-superscript t))
 
 #+end_src
 
+* PDF Viewer
+
+Interact with PDFs from Emacs. Great for working with AUCTeX apparently.
+
+#+begin_src emacs-lisp
+  ;; Done from Guix
+  (pdf-loader-install)
+  ;; (use-package pdf-tools
+  ;;   :init
+  ;;   (add-hook 'TeX-after-compilation-finished-functions #'TeX-revert-document-buffer)
+  ;;   (pdf-loader-install))
+#+end_src
 * Terminal Modes
 
 ** Term
@@ -696,6 +822,143 @@ TODO
 
 TODO
 
+* Mail
+
+** Notmuch
+
+Not liking the interface so far...poor documentation or I'm just dumb lol; searches default earliest-to-latest for some reason.
+#+begin_src emacs-lisp
+
+  ;; (use-package notmuch
+  ;;   :config
+  ;;   (setq mail-user-agent 'message-user-agent)
+  ;;   (setq user-mail-address "antigravityd@gmail.com"
+  ;;         user-full-name "Duncan Wilkie")
+  ;;   (setq smtpmail-smtp-server "smtp.gmail.com"
+  ;;         message-mail-send-function 'message-smtpmail-send-it)
+  ;;   (setq smtpmail-debug-info t)
+  ;;   (setq message-default-mail-headers "Cc: \nBcc: \n")
+  ;;   (setq message-auto-save-directory "~/.mail/drafts")
+  ;;   (setq message-kill-buffer-on-exit t)
+  ;;   (setq message-directory "~/.mail/sent")
+  ;;   (setq message-signature "-Duncan Wilkie"))
+
+#+end_src
+
+** Mu4e
+
+#+begin_src emacs-lisp
+
+  ;; (require 'mu4e)
+
+  ;; (setq mail-user-agent 'mu4e-user-agent)
+  ;; (setq mu4e-get-mail-command "mbsync -a")
+
+  ;; (setq user-full-name  "Duncan Wilkie")
+  ;; (setq mu4e-compose-signature  "-Duncan Wilkie")
+
+  ;; (setq message-kill-buffer-on-exit t)
+
+  ;; (require 'smtpmail)
+
+  ;; (setq message-send-mail-function 'smtpmail-send-it)
+
+  ;; ;;; Call the oauth2ms program to fetch the authentication token
+  ;; (defun fetch-access-token ()
+  ;;   (with-temp-buffer
+  ;;     (call-process "oauth2ms" nil t nil "--encode-xoauth2")
+  ;;     (buffer-string)))
+
+  ;; ;;; Add new authentication method for xoauth2
+  ;; (cl-defmethod smtpmail-try-auth-method
+  ;;   (process (_mech (eql xoauth2)) user password)
+  ;;   (let* ((access-token (fetch-access-token)))
+  ;;     (smtpmail-command-or-throw
+  ;;      process
+  ;;      (concat "AUTH XOAUTH2 " access-token)
+  ;;      235)))
+
+  ;; ;;; Register the method
+  ;; (with-eval-after-load 'smtpmail
+  ;;   (add-to-list 'smtpmail-auth-supported 'xoauth2))
+
+  ;; (setq message-send-mail-function   'smtpmail-send-it
+  ;;       smtpmail-default-smtp-server "smtp.example.com"
+  ;;       smtpmail-smtp-server         "smtp.example.com"
+  ;;       smtpmail-stream-type  'starttls
+  ;;       smtpmail-smtp-service 587)
+
+  ;; (setq mu4e-contexts
+  ;;       `(,(make-mu4e-context
+  ;;         :name "Personal Gmail"
+  ;;         :enter-func (lambda () (mu4e-message "Switching to Personal Gmail..."))
+  ;;         :match-func  (lambda (msg)
+  ;;                       (when msg
+  ;;                         (string-match-p "/gmail-personal" (mu4e-message-field msg :maildir))))
+  ;;         :vars '((user-mail-address . "antigravityd@gmail.com") ;; set up example Gmail config from manual
+  ;;                 (mu4e-drafts-folder . "/gmail-personal/[Gmail].Drafts")
+  ;;                 (mu4e-sent-folder . "/gmail-personal/[Gmail].Sent Mail")
+  ;;                 (mu4e-trash-folder . "/gmail-personal/[Gmail].Trash")
+  ;;                 (mu4e-sent-messages-behavior . delete)
+  ;;                 (assoc 'mu4e-maildir-shortcuts '((:maildir "/gmail-personal/Inbox" :key ?i)
+  ;;                                             (:maildir "/gmail-personal/[Gmail].Sent Mail" :key ?s)
+  ;;                                             (:maildir "/gmail-personal/[Gmail].Trash" :key ?t)
+  ;;                                             (:maildir "/gmail-personal/[Gmail].All Mail" :key ?a)))
+  ;;                 (starttls-use-gnutls . t)
+  ;;                 (assoc smtpmail-starttls-credentials '(("smtp.gmail.com" 587 nil nil)))
+  ;;                 (assoc smtpmail-auth-credentials  '(("smtp.gmail.com" 587 "antigravityd@gmail.com" nil)))
+  ;;                 (smtpmail-smtp-server . "smtp.gmail.com")
+  ;;                 (smtpmail-smtp-service . 587)))
+  ;;       ,(make-mu4e-context
+  ;;         :name "LSU"
+  ;;         :enter-func (lambda () (mu4e-message "Switching to LSU email..."))
+  ;;         :match-func (lambda (msg)
+  ;;                       (when msg
+  ;;                         (string-match-p "/lsu" (mu4e-message-field msg :maildir))))
+  ;;         :vars '((user-mail-address . "dwilk14@lsu.edu")
+  ;;                 (smtpmail-smtp-server . "smtp-mail.outlook.com")
+  ;;                 (smtpmail-stream-type . starttls)
+  ;;                 (smtpmail-smtp-service . 587)))))
+        ;; `(make-mu4e-context
+        ;; 	:name "Professional Gmail"
+        ;; 	:enter-func (lambda () (mu4e-message "Switching to Professional Gmail..."))
+        ;; 	:match-func  (lambda (msg)
+        ;; 		       (when msg
+        ;; 			 (string= (mu4e-message-field msg :maildir) "/gmail-professional")))
+        ;; 	:vars '((user-mail-address . "duncannwilkie@gmail.com")
+        ;; 		(user-full-name . "Duncan Wilkie")
+        ;; 		(mu4e-compose-signature . "-Duncan Wilkie")))
+        ;; `(make-mu4e-context
+        ;;   :name "Lab"
+        ;;   :enter-func (lambda () (mu4e-message "Switching to Lab email..."))
+        ;;   :match-func  (lambda (msg)
+        ;;                  (when msg
+        ;;                    (string= (mu4e-message-field msg :maildir) "/lab")))
+        ;;   :vars '((user-mail-address . "duncan@spartanphysics.com")
+        ;;           (user-full-name . "Duncan Wilkie")
+        ;;           (mu4e-compose-signature . "-Duncan Wilkie")))
+
+#+end_src
+
+* Gnus
+
+Email & news reader setup. Time to hit the mailing lists!
+
+#+begin_src emacs-lisp
+
+  (setq user-mail-address "antigravityd@gmail.com"
+        user-full-name "Duncan Wilkie")
+
+  (setq gnus-select-method '(nnimap "gmail"
+                                    (nnimap-address "imap.gmail.com")
+                                    (nnimap-server-port "imaps")
+                                    (nnimap-stream ssl)))
+  (setq smtpmail-smtp-server "smtp.gmail.com"
+        smtpmail-smtp-service 587
+        gnus-ignored-newsgroups "^to\\.\\|^[0-9. ]+\\( \\|$\\)\\|^[\"]\"[#'()]")
+
+#+end_src
+
 * ERC
 
 IRC client configuration & QOL changes.
@@ -711,27 +974,59 @@ IRC client configuration & QOL changes.
                     (interactive)
                     (erc-tls :server "irc.libera.chat"
                              :port "6697")))
- 
+
+#+end_src
+
+* Ement
+
+#+begin_src emacs-lisp
+
+  ;; (package-install 'quelpa-use-package)
+  ;; (require 'quelpa-use-package)
+
+  ;; (use-package plz
+  ;;   :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
+
+  ;; (use-package plz
+  ;;   :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
+
+  ;; (use-package ement
+  ;;   :quelpa (ement :fetcher github :repo "alphapapa/ement.el"))
+
 #+end_src
 
 * Elfeed
 
-RSS reader configuration. 
+RSS reader configuration.
 
 #+begin_src emacs-lisp
 
+
+  (defun dnw/elfeed-show-mode-visual-fill ()
+      (setq visual-fill-column-width 130
+            visual-fill-column-center-text t)
+      (visual-fill-column-mode 1))
+
+
   (use-package elfeed
     :hook elfeed
+    (elfeed-show-mode . dnw/elfeed-show-mode-visual-fill)
     :config
     (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
           elfeed-show-entry-switch 'display-buffer)
+    (setq elfeed-feeds
+          '("http://feeds.aps.org/rss/allsuggestions.xml"  ;; Physics
+            "http://feeds.aps.org/rss/recent/rmp.xml"
+
+            "https://lexi-lambda.github.io/feeds/all.rss.xml" ;; CS
+            "https://blog.functorial.com/feed.rss"
+
+            "https://www.ams.org/rss/jams.rss"
+            "https://jaireetschahal.substack.com/feed" ;; Math
+            "https://golem.ph.utexas.edu/category/atom10.xml"))
     :bind
     ("C-x w" . elfeed ))
 
-  (setq elfeed-feeds
-        '("http://feeds.aps.org/rss/prdsuggestions.xml"
-          ;;"http://feeds.aps.org/rss/recent/physics.xml"
-          ))
 
   ;; doesn't function. It'd be really nice to configure this from this orgfile
   ;; (use-package elfeed-org
@@ -740,6 +1035,8 @@ RSS reader configuration.
   ;;   (setq rmh-elfeed-org-files (list "/home/dnw/.emacs.d/feeds.org")))
 
 #+end_src
+
+
 
 * Parsers
 
@@ -755,6 +1052,56 @@ RSS reader configuration.
 #+begin_src emacs-lisp
 
   (use-package haskell-mode) ;; figure out how to defer loading until .hs is opened?
+
+#+end_src
+
+* TRAMP
+
+#+begin_src emacs-lisp
+
+  ;; TRAMP can't find necessary binaries on Guix machines without this after Emacs 28
+  (add-to-list 'tramp-remote-path "/run/current-system/profile/bin")
+
+#+end_src
+
+* Info
+
+#+begin_src emacs-lisp
+
+  (setq Info-use-header-line nil)
+
+#+end_src
+
+* Markdown
+
+#+begin_src emacs-lisp
+
+  (setq markdown-command "pandoc")
+
+#+end_src
+
+* EMMS
+
+Play audio and video.
+
+#+begin_src emacs-lisp
+
+    (use-package emms
+      :config
+      (emms-all)
+      :bind
+      ("<XF86AudioPlay>" . emms-start)
+      ("<XF86AudioPause>" . emms-pause)
+      ("<XF86AudioNext>" . emms-next)
+      ("<XF86AudioNext>" . emms-previous))
+
+#+end_src
+
+* HTML
+
+#+begin_src emacs-lisp
+
+  (add-hook 'xhtml-mode-hook (lambda () (call-interactively 'shr-render-buffer)))
 
 #+end_src
 
