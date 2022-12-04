@@ -18,7 +18,7 @@ Increase RAM footprint on startup to reduce load time. Display load time as well
 
   (add-hook 'emacs-startup-hook #'dnw/display-startup-time)
 
-  (server-start)
+  ;;(server-start)
 
 #+end_src
 
@@ -272,7 +272,16 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
                             "\\usepackage[letterpaper]{geometry}\n"
                             "\\usepackage{tgpagella}\n"
                             "\\usepackage{amsmath}\n"
+                            "\\usepackage{amssymb}\n"
+                            "\\usepackage{amsthm}\n"
+                            "\\usepackage{tikz}\n"
+                            "\\usepackage{minted}\n"
+                            "\\usepackage{physics}\n"
                             "\\usepackage{siunitx}\n\n"
+
+                            "\\sisetup{detect-all}\n"
+                            "\\newtheorem{plm}{Problem}\n"
+                            "\\renewcommand*{\\proofname}{Solution}\n\n"
 
 
                             "\\title{" (read-string "Title: ") "}\n"
@@ -288,23 +297,31 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
                             "\n\n\\end{document}"))
           ("Math" . (nil "\\documentclass{article}\n\n"
 
-                         "\\usepackage[letterpaper]{geometry}\n"
-                         "\\usepackage{tgpagella}\n"
-                         "\\usepackage{amsmath}\n"
-                         "\\usepackage{amssymb}\n"
-                         "\\usepackage{amsthm}\n\n"
+                            "\\usepackage[letterpaper]{geometry}\n"
+                            "\\usepackage{tgpagella}\n"
+                            "\\usepackage{amsmath}\n"
+                            "\\usepackage{amssymb}\n"
+                            "\\usepackage{amsthm}\n"
+                            "\\usepackage{tikz}\n"
+                            "\\usepackage{minted}\n"
+                            "\\usepackage{physics}\n"
+                            "\\usepackage{siunitx}\n\n"
 
-                         "\\title{" (read-string "Title: ") "}\n"
-                         "\\author{Duncan Wilkie}\n"
-                         "\\date{" (dnw/prompt-date) "}\n\n"
+                            "\\sisetup{detect-all}\n"
+                            "\\newtheorem{plm}{Problem}\n\n"
 
-                         "\\begin{document}\n\n"
 
-                         "\\maketitle\n\n"
+                            "\\title{" (read-string "Title: ") "}\n"
+                            "\\author{Duncan Wilkie}\n"
+                            "\\date{" (dnw/prompt-date) "}\n\n"
 
-                         -
+                            "\\begin{document}\n\n"
 
-                         "\n\n\\end{document}"))
+                            "\\maketitle\n\n"
+
+                            -
+
+                            "\n\n\\end{document}"))
           ("Default" . ("options, RET: " "\\documentclass[" str & 93 | -1 123
                         (read-string "class: ")
                         "}\n"
@@ -324,7 +341,7 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
     (assoc-delete-all 'latex-mode auto-insert-alist)
     (define-auto-insert 'latex-mode
       (lambda ()
-        (let* ((presets (mapcar (lambda (pair)(car pair))
+        (let* ((presets (mapcar (lambda (pair) (car pair))
                                 dnw/autoinsert-latex-presets))
                (choice (completing-read "Preset:" presets)))
           (skeleton-insert (assoc choice dnw/autoinsert-latex-presets))))))
@@ -519,24 +536,35 @@ Evaluation of code blocks & abbreviated syntax for generating them.
 
 #+begin_src emacs-lisp
 
-      (with-eval-after-load 'org
-        (org-babel-do-load-languages
-         'org-babel-load-languages
-         '((emacs-lisp . t)
-           (python . t)
-           (fortran . t)))
+  (with-eval-after-load 'org
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (python . t)
+       (fortran . t)
+       (gnuplot t)
+       (R . t)
+       (sqlite . t)
+       (haskell . t)
+       (lua . t)))
 
-      (setq org-confirm-babel-evaluate nil)
+    (setq org-confirm-babel-evaluate nil)
 
-      (require 'org-tempo)
+    (require 'org-tempo)
 
-      (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
-      (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-      (add-to-list 'org-structure-template-alist '("py" . "src python"))
-      (add-to-list 'org-structure-template-alist '("ft" . "src fortran")))
+    (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+    (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+    (add-to-list 'org-structure-template-alist '("py" . "src python"))
+    (add-to-list 'org-structure-template-alist '("ft" . "src fortran"))
+    (add-to-list 'org-structure-template-alist '("gp" . "src gnuplot"))
+    (add-to-list 'org-structure-template-alist '("sql" . "src sqlite"))
+    (add-to-list 'org-structure-template-alist '("r" . "src R"))
+    (add-to-list 'org-structure-template-alist '("hs" . "src haskell"))
+    (add-to-list 'org-structure-template-alist '("lu" . "src lua")))
 
 
 #+end_src
+
 
 ** Tangle
 
@@ -1002,37 +1030,44 @@ RSS reader configuration.
 #+begin_src emacs-lisp
 
 
-  (defun dnw/elfeed-show-mode-visual-fill ()
+    (defun dnw/elfeed-show-mode-visual-fill ()
       (setq visual-fill-column-width 130
             visual-fill-column-center-text t)
       (visual-fill-column-mode 1))
 
+    (defun dnw/render-latex ()
+      (let ((current-prefix-arg '(2)))
+        (switch-to-buffer "*elfeed-entry*")
+        (call-interactively 'org-latex-preview)))
 
-  (use-package elfeed
-    :hook elfeed
-    (elfeed-show-mode . dnw/elfeed-show-mode-visual-fill)
-    :config
-    (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
-          elfeed-show-entry-switch 'display-buffer)
-    (setq elfeed-feeds
-          '("http://feeds.aps.org/rss/allsuggestions.xml"  ;; Physics
-            "http://feeds.aps.org/rss/recent/rmp.xml"
+    (use-package elfeed
+      :hook ((elfeed-show-mode . dnw/elfeed-show-mode-visual-fill))
+      :config
+      (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
+            elfeed-show-entry-switch 'display-buffer)
+      (setq elfeed-feeds
+            '("http://feeds.aps.org/rss/allsuggestions.xml"  ;; Physics
+              "http://feeds.aps.org/rss/recent/rmp.xml"
 
-            "https://lexi-lambda.github.io/feeds/all.rss.xml" ;; CS
-            "https://blog.functorial.com/feed.rss"
+              "https://lexi-lambda.github.io/feeds/all.rss.xml" ;; CS
+              "https://blog.functorial.com/feed.rss"
 
-            "https://www.ams.org/rss/jams.rss"
-            "https://jaireetschahal.substack.com/feed" ;; Math
-            "https://golem.ph.utexas.edu/category/atom10.xml"))
-    :bind
-    ("C-x w" . elfeed ))
+              "https://www.ams.org/rss/jams.rss"
+              "https://jaireetschahal.substack.com/feed" ;; Math
+              "https://golem.ph.utexas.edu/category/atom10.xml"
+              "https://homotopytypetheory.org/feed/"
+
+              "https://notrelated.xyz/rss" ;; Misc
+              ))
+      :bind
+      ("C-x w" . elfeed ))
 
 
-  ;; doesn't function. It'd be really nice to configure this from this orgfile
-  ;; (use-package elfeed-org
-  ;;   :config
-  ;;   (setq elfeed-show-entry-switch 'display-buffer)
-  ;;   (setq rmh-elfeed-org-files (list "/home/dnw/.emacs.d/feeds.org")))
+    ;; doesn't function. It'd be really nice to configure this from this orgfile
+    ;; (use-package elfeed-org
+    ;;   :config
+    ;;   (setq elfeed-show-entry-switch 'display-buffer)
+    ;;   (setq rmh-elfeed-org-files (list "/home/dnw/.emacs.d/feeds.org")))
 
 #+end_src
 
@@ -1051,7 +1086,8 @@ RSS reader configuration.
 
 #+begin_src emacs-lisp
 
-  (use-package haskell-mode) ;; figure out how to defer loading until .hs is opened?
+  (use-package haskell-mode
+    :bind ("C-c C-h" . hoogle)) ;; figure out how to defer loading until .hs is opened?
 
 #+end_src
 
@@ -1086,14 +1122,15 @@ Play audio and video.
 
 #+begin_src emacs-lisp
 
-    (use-package emms
-      :config
-      (emms-all)
-      :bind
-      ("<XF86AudioPlay>" . emms-start)
-      ("<XF86AudioPause>" . emms-pause)
-      ("<XF86AudioNext>" . emms-next)
-      ("<XF86AudioNext>" . emms-previous))
+  (use-package emms
+    :config
+    (emms-all)
+    (add-to-list 'emms-player-list 'emms-player-mpd)
+    :bind
+    ("<XF86AudioPlay>" . emms-start)
+    ("<XF86AudioPause>" . emms-pause)
+    ("<XF86AudioNext>" . emms-next)
+    ("<XF86AudioNext>" . emms-previous))
 
 #+end_src
 
@@ -1105,6 +1142,119 @@ Play audio and video.
 
 #+end_src
 
+* Gnuplot
+
+#+begin_src emacs-lisp
+
+  (use-package gnuplot)
+#+end_src
+
+* Desktop Environment
+
+** EXWM
+
+#+begin_src emacs-lisp
+
+  (require 'exwm-xim)
+  ;;(require 'exwm-systemtray)
+
+  (defun dnw/exwm-config ()
+    "My configuration of EXWM, adapted from the example."
+    ;; Set the initial workspace number.
+    (unless (get 'exwm-workspace-number 'saved-value)
+      (setq exwm-workspace-number 4))
+    ;; Make class name the buffer name
+    (add-hook 'exwm-update-class-hook
+              (lambda ()
+                (exwm-workspace-rename-buffer exwm-class-name)))
+    ;; Global keybindings.
+    (unless (get 'exwm-input-global-keys 'saved-value)
+      (setq exwm-input-global-keys
+            `(
+              ;; 's-r': Reset (to line-mode).
+              ([?\s-r] . exwm-reset)
+              ;; 's-w': Switch workspace.
+              ([?\s-w] . exwm-workspace-switch)
+              ;; 's-p': Launch application.
+              ([?\s-p] . (lambda (command)
+                           (interactive (list (read-shell-command "$ ")))
+                           (start-process-shell-command command nil command)))
+              ;; 's-P': retrieve a password from password store
+              ([?\s-P] . password-store-copy)
+              ;; 's-N': Switch to certain workspace.
+              ,@(mapcar (lambda (i)
+                          `(,(kbd (format "s-%d" i)) .
+                            (lambda ()
+                              (interactive)
+                              (exwm-workspace-switch-create ,i))))
+                        (number-sequence 0 9)))))
+    ;; Line-editing shortcuts
+    (unless (get 'exwm-input-simulation-keys 'saved-value)
+      (setq exwm-input-simulation-keys
+            '(([?\C-b] . [left])
+              ([?\C-f] . [right])
+              ([?\C-p] . [up])
+              ([?\C-n] . [down])
+              ([?\C-a] . [home])
+              ([?\C-e] . [end])
+              ([?\M-v] . [prior])
+              ([?\C-v] . [next])
+              ([?\C-s] . [C-f])
+              ([?\C-d] . [delete])
+              ([?\C-g] . [ESC])
+              ([?\M-b] . [C-left])
+              ([?\M-f] . [C-right])
+              ([?\C-k] . [S-end delete])
+              ([?\C-w] . [C-x])
+              ([?\M-w] . [C-c])
+              ([?\C-y] . [C-v])
+              ([?\C-/] . [C-z])
+              ([?\C-x ?h] . [C-a]))))
+    ;; Enable EXWM
+    (exwm-enable)
+    (exwm-xim-enable)
+    (push ?\C-\\ exwm-input-prefix-keys))
+
+  (use-package exwm
+    :config (dnw/exwm-config))
+
+#+end_src
+
+** Pass-mode
+
+#+begin_src emacs-lisp
+
+  (use-package password-store)
+
+#+end_src
+
+** EXWM-edit
+
+Edit selected text in org-mode-style source block. It full-screens it at the moment, not sure what that's about.
+
+#+begin_src emacs-lisp
+
+  (use-package exwm-edit)
+
+#+end_src
+
+* Lean
+
+#+begin_src emacs-lisp
+
+  (use-package lean-mode)
+
+  (use-package company-lean)
+
+#+end_src
+
+* Disable Annoying Quail Buffer
+
+#+begin_src emacs-lisp
+
+  (with-eval-after-load 'quail (defun quail-completion ()))
+
+#+end_src
 * Runtime Performance
 
 #+begin_src emacs-lisp
