@@ -9,7 +9,7 @@
 
 (add-hook 'emacs-startup-hook #'dnw/display-startup-time)
 
-(server-start)
+;;(server-start)
 
 (global-set-key (kbd "C->") 'indent-rigidly-right-to-tab-stop)
 (global-set-key (kbd "C-<") 'indent-rigidly-left-to-tab-stop)
@@ -22,8 +22,14 @@
 (add-to-list 'default-frame-alist
              '(font . "Iosevka-10"))
 
-(setf use-default-font-for-symbols nil)
-(set-fontset-font t 'unicode "Noto Emoji" nil 'append)
+(defun dnw/unicode-fonts ()
+  (setf use-default-font-for-symbols nil)
+  (set-fontset-font t 'unicode "Noto Emoji" nil 'append)
+  (set-fontset-font t 'emoji "Noto Color Emoji"))
+
+(if (daemonp)
+    (add-hook 'server-after-make-frame-hook #'dnw/unicode-fonts)
+  (dnw/unicode-fonts))
 
 (setq inhibit-startup-message t)
 
@@ -63,7 +69,7 @@
 
 (setq use-package-always-ensure t)
 
-(add-to-list 'load-path "/home/dnw/Code/PHYTS/phits-mode")
+(add-to-list 'load-path "/home/dnw/Code/PyPHITS/phits-mode")
 (require 'phits-mode)
 
 (add-to-list 'auto-mode-alist '("\\.inp\\'" . phits-mode))
@@ -145,7 +151,16 @@
                           "\\usepackage[letterpaper]{geometry}\n"
                           "\\usepackage{tgpagella}\n"
                           "\\usepackage{amsmath}\n"
+                          "\\usepackage{amssymb}\n"
+                          "\\usepackage{amsthm}\n"
+                          "\\usepackage{tikz}\n"
+                          "\\usepackage{minted}\n"
+                          "\\usepackage{physics}\n"
                           "\\usepackage{siunitx}\n\n"
+
+                          "\\sisetup{detect-all}\n"
+                          "\\newtheorem{plm}{Problem}\n"
+                          "\\renewcommand*{\\proofname}{Solution}\n\n"
 
 
                           "\\title{" (read-string "Title: ") "}\n"
@@ -161,23 +176,31 @@
                           "\n\n\\end{document}"))
         ("Math" . (nil "\\documentclass{article}\n\n"
 
-                       "\\usepackage[letterpaper]{geometry}\n"
-                       "\\usepackage{tgpagella}\n"
-                       "\\usepackage{amsmath}\n"
-                       "\\usepackage{amssymb}\n"
-                       "\\usepackage{amsthm}\n\n"
+                          "\\usepackage[letterpaper]{geometry}\n"
+                          "\\usepackage{tgpagella}\n"
+                          "\\usepackage{amsmath}\n"
+                          "\\usepackage{amssymb}\n"
+                          "\\usepackage{amsthm}\n"
+                          "\\usepackage{tikz}\n"
+                          "\\usepackage{minted}\n"
+                          "\\usepackage{physics}\n"
+                          "\\usepackage{siunitx}\n\n"
 
-                       "\\title{" (read-string "Title: ") "}\n"
-                       "\\author{Duncan Wilkie}\n"
-                       "\\date{" (dnw/prompt-date) "}\n\n"
+                          "\\sisetup{detect-all}\n"
+                          "\\newtheorem{plm}{Problem}\n\n"
 
-                       "\\begin{document}\n\n"
 
-                       "\\maketitle\n\n"
+                          "\\title{" (read-string "Title: ") "}\n"
+                          "\\author{Duncan Wilkie}\n"
+                          "\\date{" (dnw/prompt-date) "}\n\n"
 
-                       -
+                          "\\begin{document}\n\n"
 
-                       "\n\n\\end{document}"))
+                          "\\maketitle\n\n"
+
+                          -
+
+                          "\n\n\\end{document}"))
         ("Default" . ("options, RET: " "\\documentclass[" str & 93 | -1 123
                       (read-string "class: ")
                       "}\n"
@@ -197,7 +220,7 @@
   (assoc-delete-all 'latex-mode auto-insert-alist)
   (define-auto-insert 'latex-mode
     (lambda ()
-      (let* ((presets (mapcar (lambda (pair)(car pair))
+      (let* ((presets (mapcar (lambda (pair) (car pair))
                               dnw/autoinsert-latex-presets))
              (choice (completing-read "Preset:" presets)))
         (skeleton-insert (assoc choice dnw/autoinsert-latex-presets))))))
@@ -311,16 +334,29 @@
    'org-babel-load-languages
    '((emacs-lisp . t)
      (python . t)
-     (fortran . t)))
+     (fortran . t)
+     (gnuplot t)
+     (R . t)
+     (sqlite . t)
+     (haskell . t)
+     (lua . t)
+     (shell . t)
+     (C . t)))
 
-(setq org-confirm-babel-evaluate nil)
+  (setq org-confirm-babel-evaluate nil)
 
-(require 'org-tempo)
+  (require 'org-tempo)
 
-(add-to-list 'org-structure-template-alist '("sh" . "src shell"))
-(add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-(add-to-list 'org-structure-template-alist '("py" . "src python"))
-(add-to-list 'org-structure-template-alist '("ft" . "src fortran")))
+  (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+  (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+  (add-to-list 'org-structure-template-alist '("py" . "src python3"))
+  (add-to-list 'org-structure-template-alist '("ft" . "src fortran"))
+  (add-to-list 'org-structure-template-alist '("gp" . "src gnuplot"))
+  (add-to-list 'org-structure-template-alist '("sql" . "src sqlite"))
+  (add-to-list 'org-structure-template-alist '("r" . "src R"))
+  (add-to-list 'org-structure-template-alist '("hs" . "src haskell"))
+  (add-to-list 'org-structure-template-alist '("lu" . "src lua"))
+  (add-to-list 'org-structure-template-alist '("sys" . "src C")))
 
 (defun dnw/org-babel-tangle-config ()
   (when (string-equal (buffer-file-name)
@@ -476,7 +512,7 @@
   (setq TeX-electric-sub-and-superscript t))
 
 ;; Done from Guix
-(pdf-loader-install)
+;; (pdf-loader-install)
 ;; (use-package pdf-tools
 ;;   :init
 ;;   (add-hook 'TeX-after-compilation-finished-functions #'TeX-revert-document-buffer)
@@ -489,6 +525,49 @@
 
 (use-package eterm-256color
   :hook (term-mode . eterm-256color-mode))
+
+(defun dnw/prompt-prefix ()
+  (let ((guess (apply
+                'concat
+                (-map
+                 (lambda (x)
+                   (if (string= x "dnw")
+                        "~/"
+                     (concat x "/")))
+                 (seq-subseq
+                  ;; extra ""'s are to prevent slicing errors
+                  (cons "" (cons "" (split-string (eshell/pwd) "/")))
+                  -2)))))
+    (if (string= guess "home/~/")
+        "~"
+      (string-remove-suffix "/" guess))))
+
+(remove-hook 'eshell-output-filter-functions
+             'eshell-postoutput-scroll-to-bottom)
+
+(defun dnw/prompt ()
+  (concat
+   (propertize
+    (dnw/prompt-prefix)
+    'font-lock-face '(:foreground "#4068A3"))
+   (propertize " ᛋ" 'font-lock-face '(:foreground "#CB77F9"))
+   (propertize " " 'font-lock-face "default")))
+
+(setq eshell-prompt-regexp "^[^ᛋ\n]* ᛋ ")
+
+(setq eshell-highlight-prompt nil
+      eshell-prompt-function #'dnw/prompt)
+
+(setq eshell-banner-message "We will reinvent the wheel. They used triangles. 🗿\n\n")
+
+;; (add-to-list eshell-visual-subcommands '("guix" "search"))
+;; (add-to-list eshell-visual-subcommands '("guix" "install"))
+;; (add-to-list eshell-visual-subcommands '("guix" "remove"))
+
+(setq eshell-destroy-buffer-when-process-dies t)
+
+(setq eshell-prefer-lisp-functions t)
+(setq eshell-prefer-lisp-variables t)
 
 ;; (use-package notmuch
 ;;   :config
@@ -627,14 +706,17 @@
 ;;   :quelpa (ement :fetcher github :repo "alphapapa/ement.el"))
 
 (defun dnw/elfeed-show-mode-visual-fill ()
-    (setq visual-fill-column-width 130
-          visual-fill-column-center-text t)
-    (visual-fill-column-mode 1))
+  (setq visual-fill-column-width 130
+        visual-fill-column-center-text t)
+  (visual-fill-column-mode 1))
 
+(defun dnw/render-latex ()
+  (let ((current-prefix-arg '(2)))
+    (switch-to-buffer "*elfeed-entry*")
+    (call-interactively 'org-latex-preview)))
 
 (use-package elfeed
-  :hook elfeed
-  (elfeed-show-mode . dnw/elfeed-show-mode-visual-fill)
+  :hook ((elfeed-show-mode . dnw/elfeed-show-mode-visual-fill))
   :config
   (setq elfeed-db-directory (expand-file-name "elfeed" user-emacs-directory)
         elfeed-show-entry-switch 'display-buffer)
@@ -647,7 +729,11 @@
 
           "https://www.ams.org/rss/jams.rss"
           "https://jaireetschahal.substack.com/feed" ;; Math
-          "https://golem.ph.utexas.edu/category/atom10.xml"))
+          "https://golem.ph.utexas.edu/category/atom10.xml"
+          "https://homotopytypetheory.org/feed/"
+
+          "https://notrelated.xyz/rss" ;; Misc
+          ))
   :bind
   ("C-x w" . elfeed ))
 
@@ -661,7 +747,8 @@
 ;;(use-package bison-mode)
 (add-to-list 'auto-mode-alist '("\\.g4\\'" . c-mode))
 
-(use-package haskell-mode) ;; figure out how to defer loading until .hs is opened?
+(use-package haskell-mode
+  :bind ("C-c C-h" . hoogle)) ;; figure out how to defer loading until .hs is opened?
 
 ;; TRAMP can't find necessary binaries on Guix machines without this after Emacs 28
 (add-to-list 'tramp-remote-path "/run/current-system/profile/bin")
@@ -673,6 +760,7 @@
 (use-package emms
   :config
   (emms-all)
+  (add-to-list 'emms-player-list 'emms-player-mpd)
   :bind
   ("<XF86AudioPlay>" . emms-start)
   ("<XF86AudioPause>" . emms-pause)
@@ -681,17 +769,117 @@
 
 (add-hook 'xhtml-mode-hook (lambda () (call-interactively 'shr-render-buffer)))
 
+(use-package gnuplot)
+
+(require 'exwm-xim)
+(require 'exwm-randr)
+(require 'exwm-systemtray)
+
+(defun dnw/exwm-config ()
+  "My configuration of EXWM, adapted from the example."
+  ;; Set the initial workspace number.
+  (unless (get 'exwm-workspace-number 'saved-value)
+    (setq exwm-workspace-number 4))
+  ;; Make class name the buffer name
+  (add-hook 'exwm-update-class-hook
+            (lambda ()
+              (exwm-workspace-rename-buffer exwm-class-name)))
+  (setq exwm-randr-workspace-output-plist  '(1 "VGA1" 2 "VGA1" 3 "VGA1"))
+  (add-hook 'exwm-randr-screen-change-hook
+            (lambda ()
+              (start-process-shell-command
+               "xrandr" nil "xrandr --output VGA1 --left-of LVDS1 --auto")))
+
+  ;; Global keybindings.
+  (unless (get 'exwm-input-global-keys 'saved-value)
+    (setq exwm-input-global-keys
+          `(
+            ;; 's-r': Reset (to line-mode).
+            ([?\s-r] . exwm-reset)
+            ;; 's-w': Switch workspace.
+            ([?\s-w] . exwm-workspace-switch)
+            ;; 's-p': Launch application.
+            ([?\s-p] . (lambda (command)
+                         (interactive (list (read-shell-command "$ ")))
+                         (start-process-shell-command command nil command)))
+            ;; 's-P': retrieve a password from password store
+            ([?\s-P] . password-store-copy)
+            ;; 's-N': Switch to certain workspace.
+            ,@(mapcar (lambda (i)
+                        `(,(kbd (format "s-%d" i)) .
+                          (lambda ()
+                            (interactive)
+                            (exwm-workspace-switch-create ,i))))
+                      (number-sequence 0 9)))))
+  ;; Line-editing shortcuts
+  (unless (get 'exwm-input-simulation-keys 'saved-value)
+    (setq exwm-input-simulation-keys
+          '(([?\C-b] . [left])
+            ([?\C-f] . [right])
+            ([?\C-p] . [up])
+            ([?\C-n] . [down])
+            ([?\C-a] . [home])
+            ([?\C-e] . [end])
+            ([?\M-v] . [prior])
+            ([?\C-v] . [next])
+            ([?\C-s] . [C-f])
+            ([?\C-d] . [delete])
+            ([?\C-g] . [ESC])
+            ([?\M-b] . [C-left])
+            ([?\M-f] . [C-right])
+            ([?\C-k] . [S-end delete])
+            ([?\C-w] . [C-x])
+            ([?\M-w] . [C-c])
+            ([?\C-y] . [C-v])
+            ([?\C-/] . [C-z])
+            ([?\C-x ?h] . [C-a]))))
+  ;; Enable EXWM
+  (exwm-enable)
+  (exwm-xim-enable)
+  (exwm-randr-enable)
+  (exwm-systemtray-enable)
+  (push ?\C-\\ exwm-input-prefix-keys))
+
+(use-package exwm
+  :config (dnw/exwm-config))
+
+(use-package password-store
+  :config (pinentry-start))
+
+(use-package exwm-edit)
+
+(use-package eww
+  :config
+  (setq browse-url-browser-function 'eww-browse-url)
+  (setq eww-search-prefix "https://librex.devol.it/search.php?q=")
+  (setq dnw/eww-auto-readable-blacklist '("https://librex.devol.it"))
+
+  (defun dnw/eww-auto-readable ()
+    (if (seq-some (lambda (bl) (string-prefix-p bl (eww-current-url)))
+                  dnw/eww-auto-readable-blacklist)
+        nil
+      (eww-readable)))
+
+  (defun dnw/eww-unreadable ()
+    (interactive)
+    (let ((hook eww-after-render-hook))
+      (setq eww-after-render-hook nil)
+      (eww-reload t)
+      (setq eww-after-render-hook hook))))
+
+  ;; (add-hook 'eww-after-render-hook #'dnw/eww-auto-readable)
+  ;; :hook (eww-after-render-hook . dnw/eww-auto-readable) this, for some reason, doesn't work
+  ;; :bind ("U" . dnw/eww-unreadable)
+
+(use-package lean-mode)
+
+(use-package company-lean)
+
+(use-package racket-mode)
+
+(use-package geiser
+  :config (require 'geiser-guile))
+
+(with-eval-after-load 'quail (defun quail-completion ()))
+
 (setq gc-cons-threshold (* 2 1000 1000))
-(custom-set-variables
- ;; custom-set-variables was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- '(package-selected-packages
-   '(ytel-show ytel elfeed-tube bluetooth ws-butler which-key vertico telega smartparens rainbow-delimiters quelpa-use-package pdf-tools org-roam org-present org-drill org-bullets org-appear orderless no-littering marginalia magit-popup magit lsp-ui hydra helpful haskell-mode geiser-guile flycheck exec-path-from-shell eterm-256color emms ement elfeed edit-indirect doom-themes doom-modeline dired-single diminish corfu consult company ccls bui auto-package-update auctex all-the-icons-dired)))
-(custom-set-faces
- ;; custom-set-faces was added by Custom.
- ;; If you edit it by hand, you could mess it up, so be careful.
- ;; Your init file should contain only one such instance.
- ;; If there is more than one, they won't work right.
- )
