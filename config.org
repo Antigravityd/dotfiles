@@ -1,14 +1,100 @@
-#+title DNW's GNU Emacs Configuration
-#+PROPERTY: header-args:emacs-lisp :tangle ./init.el
+#+Title DNW's GNU Emacs Configuration
+#+PROPERTY: header-args :tangle ./init.el
+
+Top-level TODOs:
+ - Describe how I use things, and what the alternatives are and why I dislike them, more than what things do. They can read the code.
+ - Learn how to use compilation and debugging modes
+ - Get really good auth-sources etc. support
+ - Emacsclient
+ - Read through the Emacs source tree/info pages for all the features I'm missing
+ - nerd-icons-completion
+ - Links to Emacs documentation explaining the things I talk about, and all the keybindings accessible.
+
+* Why Emacs?
+
+#+begin_verse
+...
+Reason is clouding,
+Hearts are hardening,
+And the result is murder.
+This age is grave bound,
+Likewise its aging successors.
+Aging, all the while, descending
+Developing an even more insatiable thirst for chaos.
+Life among hyenas and asps under vultures
+That pick at the corpses of the fallen.
+And man will continue to suffer unto itself
+Until some stand to rally the fray by firm example.
+Chaos must succumb to order
+Lest these days be numbered.
+I cannot contribute to disarray.
+I simply cannot relate.
+Let this be my act of defiance.
+Let this by my refusal to fit in.
+Let this by my writ of misanthropy...
+
+    --- /Scornful of The Motives And Virtue of Others/, Shai Hulud, 2003
+
+#+end_verse
+
+The joke goes "Emacs is a wonderful operating system lacking only a decent text editor." The joke has a kernel of truth: Emacs is first and foremost, from a design perspective, a Lisp environment, which merely happens to have extensive faculties for interacting with text. This is precisely why Emacs is the /best/ text editor. For a system which edits text must not only be good at that now, for whatever definition of "text" occupies its designers, but also later, for whatever evolutions in the definition of "text" occur. It must be able to handle the slings and arrows of the evolution of text's structure, and be able to be modified to handle any well-specified action on any form of text that any sufficiently driven user would like to implement. The ease with which it handles that task is precisely the extent to which it will survive.
+
+Emacs and vi have long histories, each back to 1976. As editors based on them in some way have seen extensive use through all of the evolution of text and its structure (not even to mention the evolution of computers!) in the intervening 47 years, they over all newer editors can evidence the claim that their systems are capable. However, these systems are very different and, I hope to argue, actually seem /dual/.
+
+The vi perspective (in line with the UNIX perspective) is that text in the filesystem is the substance on which programs operate; it is what they produce and consume, and that by composing individual programs that perform simple text manipulations one may arive at powerful systems from simple parts. Programs are configured through filesystem text, either with a declarative config file or by modifying and recompilng their source. Programs are accessed through filesystem text, by typing their name into a shell (which can only take text input, and can only output other text and side-effects). Even hardware devices are accessed through filesystem text, by reading and writing under the =/proc= and =/dev= trees. This is a worthy perspective, and certainly an elegant one. Getting good at shell-fu gives great h@x0r feelings. The reason this paradigm has been capable of surviving a near half-century is that the editor itself does relatively little: it's the responsibility of the tools around the editor to extend the functionality of the editor itself.
+
+By contrast, I think the Emacs perspective is that text is merely the substance of which programs and the data they operate on can be /composed/, but is not what they /are/. Therefore, we need not control our computers through particular text incantations in a shell (though we may), nor must all programs interface through the intermediary of a text terminal or terminal emulator (though, again, they may). The text editor exists more generally to describe and control computer behavior, which, yes, often takes the form of reading, writing, and executing text, but which also can take the form of simple keystrokes bound to functionality, pictures and animations presented to the user, or interactive graphical displays. vi people have recognized this to an extent, mercilessly abusing terminal control codes to get colors and interactive animations in the tty, polluting their textual paradise with programs graphical in all but name. Emacs, by contrast, has no such philosophical restrictions, so it may be principled about drawing, via C codes actually /designed/ for the purpose, from the ground up. Emacs, rather than a text editor, should be regarded as a replacement of the /shell/, the vi man's door to his system.
+
+Emacs is configured in Lisp. The language represents a fixed point in the relationship between programs' identity and programs' composition---homoiconicity, there being no distinction in form between a Lisp's representation of the data it operates on and the code doing the operation, enables ordinary Lisp code to reason about other Lisp code with the same primitives used for reasoning about anything else---no weird templating, interpolation, parsing, or quoting. Just =macroexpand=. It's a dead-simple language, with about 5 pieces of syntax (lists, procedure calls, quotes, and quasiquotes). Other versions can be implemented with about 10 primitives (see the wizard book). It's extremely expressive---most modern CAS (for a fact: Maple, Wolfram/Mathematica, and SageMATH) drew on theoretical advances made by the MACSYMA system, written at MIT in Maclisp for the PDP-6 starting in 1968. Sage is actually said to have some of the original 1968 Lisp code, albeit ported to CommonLisp, surviving in its core routines. Configuration in a general-purpose language like this enables the editor's functionality to change as its users' preferences, requirements, systems, and operating systems do. The actual, runtime state of configuration variables can be inspected and changed on the fly.
+
+From a user perspective, the fact that all keystrokes in Emacs are user-configurably bound to Lisp functions (or Lisp wrappers of C functions) is a large part of what enables its power. One may attach any functionality to any key combination in any way, at runtime, in any way you desire. And so it has been since Stallman's FOSS port to GNU in 1984. Without this, I doubt I'd be writing this today. This contrasts again with the structure of vi: the improvements to Emacs are internal, not external. Programs written in Emacs Lisp, distributed and installed just as other programs, are used as substitutes for command-line alternatives, written in bash or C. To be clear, no generality or speed need be lost: Emacs can interact with the C ABI and command-line programs just as vi-based editors can. Instead, that generality and speed becomes a balance against ease of development and use, a balance most seem to have struck against developing code externally first. Which, probably, would mean that more code would have been developed for vi, had its users the same option (neovim's Lua configuration confirms this further).
+
+Emacs is additionally self-documenting. In the Common Lisp tradition, every package, module, variable, function, and macro can be adorned with a docstring. These docstrings can be used to dynamically produce documentation pages for variables and keybinds, as you forget them in real-time. Emacs' use of prefix keys (e.g. =C-x=, after which the keystroke =b= will mean the Lisp function =switch-to-buffer= rather than insertion of a characters) enables packages that, through runtime querying of the current keymap, will tell you all the available next-step bindings and their functions in a key sequence if you wait longer than a time out. If you forget what a key does, or want to use a key combination in a script, =C-h k= will let you type it in and will present the documentation page of the function to which the key combination is bound. Similarly, under =C-h= are many other facilities to bring up documentation pages, which, after some configuration with an external package, will present the command, its arguments, its docstring, any manual/info entries about it, links to the documentation of other functions in close relation to it, any key bindings in any mode map that are defined to it, it's definition (whether C or Emacs Lisp), other source references to it (C or Emacs Lisp), trace calls of it, and more. I wrote my first Emacs major mode in a weekend, knowing zero Emacs Lisp beyond what I had copied verbatim from David Wilson's /Emacs from Scratch/ videos, and was distributing it among my research group the following Monday. It's difficult to overstate its power.
+
+Hopefully, this is a convincing case for "/the/ extensible, customizable, self-documenting, real-time display editor." An illustrative, mature personal configuration follows.
+
+* How to Use This Configuration
+
+If you're completely new to Emacs, drop everything and type =C-h t= (=h= with =<control>= held down, and then =t= after releasing). This will explain the basic buffer navigation and editing commands and some terminology. After finishing that (you can go back at any time by typing the same thing), type =C-h C-h= (=h= with =<control>= held down, done twice) to see all of the other places you can get help. The manual, accessed via =C-h r=, is quite helpful (if you press =u= for "up" a bunch, you can get to the top-level info directory, and read info manuals for other things on your system within Emacs!).
+
+Place this org file under =~/.emacs.d/=. Once Emacs is up-and-running with this configuration, simply saving this file after making changes to the config snippets will result in those changes being written out to an =init.el= file in this directory, which will be loaded by Emacs at startup. However, this init file must be working in order for the setting enabling tangle-on-save to be set. The first time, you can type =M-x org-babel-tangle= (bound to =C-c C-v t=) to produce it, and it should (hopefully) work painlessly after restarting.
+
+This is intended to be read in tandem with other sources of documentation; particularly, the manual above and the built-in help facilities. To learn how to navigate the manual, press =C-h m= in the manual, and test the commands (=C-h r= at any time should return to the Emacs manual, and when in doubt, spam =C-g= a few times before rerunning). To see exactly what something in the configuration snippets is doing, press =C-h o= with the point near the thing in question and it should be the first completion candidate (otherwise just type it in like a plebian 😎).
+
+* Configuration Philosophy
+
+There are a few principles this configuration follows.
+
+- Packages that exploit built-in features usually integrate better and are more powerful and extensible than those which don't.
+- However, this shouldn't induce too strong an aversion to external code---packages with substantially improved feature sets and ergonomics can offset the above.
+- Modules should load lazily to reduce startup time and memory overhead (e.g. don't load a major mode until a file to which it applies is opened), and tear down when no longer needed.
+- User interfaces should be mostly invisible until called-upon---the user can rely on explicit documentation and help features to learn what's available when.
+- Minimize keystrokes, prevent injury.
+- Mice are literally spawn of Satan: keyboard-driven workflows are preferred at all costs (hence why this is an Emacs configuration). The time taken moving keyboard-to-mouse adds up.
+- Modal editing requires keeping track of which mode you're in, and doesn't seem to meaningfully reduce either keystrokes or dependence upon modifier keys, and as such is needless complexity. The keystroke =A= should always insert the character "A", unless specifically instruced otherwise via prefixing. In a sense, these prefixes are a type of "modal editing"---and accordingly, by exploiting them in depth, the key combinations are more semantic/mnemonic and far more numerous (by default, there are 10000+ key combinations).
+- In-Emacs user-interfaces are preferred to external programs, in the interest of maximizing configurability, integration, and extensibility (with the same caveat as the second bullet, /mutadis mutandis/).
+- Colors, symbols, and embedded pictures enable more compact representation and faster communication of information than text alone (hence GUI Emacs).
+- Avoid the "customize" interface, because actual use of it clutters up the init file/process. Changes to variables should be performed first temporarily through =M-:= and then permanently via =setq= in this org file, and tangled out to the actual =init.el=.
+- Starting with more feature-complete packages, while I might not need all of their functionality immediately, prevents needing to rewrite an existing config for what would be a single =setq= otherwise. Especially true if it's already built-in---there's little downside.
+
+There are also some rules according to which this text is composed.
+
+- Group configuration elements by their highest-level end-user purpose
+- Describe first the /why/ of the config snippet. Then describe the /what/ with comments in the actual snippet, and follow the snippet with some /how/ (useful keybindings, extra necessary system configuration etc).
+- Link to first-party repositories and documentation as much as possible.
+- Describe useful built-in Emacs tools that might need no configuration, so the reader knows what's out there.
+- For similar reasons, describe the other packages not included in the configuration, but are worthy of evaluation, detailing the reasoning for what is chosen based on the list above.
 
 * Startup Performance
 
-Increase RAM footprint on startup to reduce load time. Display load time as well.
+The configuration will load faster if we let the interpreter's RAM footprint blow up on startup.
 
 #+begin_src emacs-lisp
 
+  ;; Increase garbage-collection threshold
   (setq gc-cons-threshold (* 50 1000 1000))
 
+  ;; Tell us how fast we're going, for benchmarking
   (defun dnw/display-startup-time ()
     (message "Emacs loaded in %s with %d garbage collections."
              (format "%2f seconds"
@@ -18,77 +104,112 @@ Increase RAM footprint on startup to reduce load time. Display load time as well
 
   (add-hook 'emacs-startup-hook #'dnw/display-startup-time)
 
-  ;;(server-start)
-
 #+end_src
 
+* Package Management
 
-* General Keybinds
-
-** Text Editing
-
-Indent region; set TAB to complete in right circumstance
+The default Emacs system, from 24 to 28, has only the =require= interface, which is imperative and somewhat difficult to optimize load-time with. The =use-package= macro provides a more ergonomic, declarative way to control loading and configuration of packages, and will be in Emacs 29 (a few weeks away at time of writing). Additionally, installs are only available from the official GNU ELPA archive by default. Most third-party packages are hosted on the MELPA. Currently, some alternative package managers/loaders/configurers are: =straight=, =quelpa-use-package=, =elpaca=, =el-get=, =elpaso=, =cask=. I will not claim to be familiar with any of these, but the selection criteria few sections above ought to apply, /mutatis mutandis/, to package managers.
 
 #+begin_src emacs-lisp
 
-  (global-set-key (kbd "C->") 'indent-rigidly-right-to-tab-stop)
-  (global-set-key (kbd "C-<") 'indent-rigidly-left-to-tab-stop)
+  ;; Get the good stuff from MELPA
+  (require 'package)
+  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
+                           ("elpa" . "https://elpa.gnu.org/packages/")))
 
-  (setq tab-always-indent 'complete)
-  (setq align-to-tab-stop nil)
+  ;; Sync the repos
+  (package-initialize)
+  (unless package-archive-contents
+    (package-refresh-contents))
+
+  ;; When compiling config (for load time's sake), install and load use-package, if not done already.
+  (eval-when-compile
+    (unless (package-installed-p 'use-package)
+      (package-install use-package))
+    (require 'use-package))
+
+  ;; Ensure that every package declared is installed correctly.
+  (setq use-package-always-ensure t)
+
+  ;; Allows us to make sure external binaries are available to support a particular package.
+  (use-package use-package-ensure-system-package)
 
 #+end_src
 
-* Basic Configuration UI
+* UI Glow-Up
+
+By default, Emacs is ugly as sin.
 
 ** Better Font
 
-Noto Emoji is the fallback here.
+Something like GNU Unifont is the default; I don't think I have a good eye for fonts generally, but Iosevka seems leaps and bounds better. Google's Noto fonts have great unicode coverage, and nice-looking emojis.
 
 #+begin_src emacs-lisp
 
-  ;; default-frame-alist works with --daemon
+  ;; Check for the desired fonts.
+  (if (not (find-font (font-spec :name "Iosevka")))
+      (message "Must have Iosevka font installed and available to Emacs."))
 
+  (if (not (find-font (font-spec :name "Liberation Sans")))
+      (message "Must have Iosevka font installed and available to Emacs."))
+
+  (if (not (find-font (font-spec :name "Noto Sans")))
+      (message "Must have Google's Noto Emoji font installed and available to Emacs."))
+
+  (if (not (find-font (font-spec :name "Noto Color Emoji")))
+      (message "Must have Google's Noto Color font installed and available to Emacs."))
+
+  ;; Set the default font to be monospaced
   (add-to-list 'default-frame-alist
                '(font . "Iosevka-10"))
 
+  ;; Set fallback for Unicode characters
   (defun dnw/unicode-fonts ()
     (setf use-default-font-for-symbols nil)
+    (set-face-font 'variable-pitch (font-spec :name "Liberation Sans"))
+    (set-face-font 'fixed-pitch (font-spec :name "Iosevka"))
     (set-fontset-font t 'unicode "Noto Emoji" nil 'append)
     (set-fontset-font t 'emoji "Noto Color Emoji"))
 
+  ;; Configuring the fallbacks has some timing intricacies with the daemon
   (if (daemonp)
       (add-hook 'server-after-make-frame-hook #'dnw/unicode-fonts)
     (dnw/unicode-fonts))
 
 #+end_src
 
-** Hide Ugly GUI Elements
+** Hide Ugly UI Elements
 
 #+begin_src emacs-lisp
 
-  (setq inhibit-startup-message t)
-
+  ;; Everything that reeks of desktop environments must go. We know what we're doing.
   (menu-bar-mode -1)
   (tool-bar-mode -1)
   (scroll-bar-mode -1)
   (tooltip-mode -1)
   (set-fringe-mode 10)
 
+  ;; Make a 1337 h@ckerman5 splash screen TODO
+  (setq inhibit-startup-message t)
+
 #+end_src
 
 ** Line Numbers
 
-Display cursor position on the modeline, and line numbers left of the buffer. Except where it's stupid.
+The desktop environment clutter may now be replaced with tasteful, contentual, context-dependent navigation information.
 
 #+begin_src emacs-lisp
 
+  ;; Show column number on the modeline.
   (column-number-mode)
+
+  ;; Display line numbers in the left margin, as a general rule,
   (global-display-line-numbers-mode t)
 
-  ;; Disable in e.g. shell
+  ;; but disable them where they just add clutter, e.g. shell.
   (dolist (mode '(org-mode-hook
                   term-mode-hook
+                  vterm-mode-hook
                   eshell-mode-hook
                   Info-mode-hook
                   ement-room-mode-hook
@@ -98,84 +219,266 @@ Display cursor position on the modeline, and line numbers left of the buffer. Ex
 
 #+end_src
 
-** Transparency
+** DOOM Features
+
+DOOM Emacs' modeline simply looks better to me than the default or Spacemacs'. If the minor-mode list ever gets too cluttered, install the =diminish= package to mitigate. The DOOM themes, additionally, appear to play nicer with buffers created by external packages (I presume because these are in DOOM's distribution by default).
 
 #+begin_src emacs-lisp
 
-  (set-frame-parameter (selected-frame) 'alpha '(100 100))
+  ;; Get the modeline.
+  (use-package doom-modeline
+    :ensure t
+    :init (doom-modeline-mode 1))
 
-  (add-to-list 'default-frame-alist '(alpha 100 100))
+  ;; It installs an Emacs package for its icon fonts, but the symbols need to be installed.
+  (if (not (find-font (font-spec :name "Symbols Nerd Font Mono")))
+      (nerd-icons-install-fonts))
+
+  ;; Get the themes, and load the favorite.
+  (use-package doom-themes
+    :init (load-theme 'doom-tomorrow-night t))
 
 #+end_src
 
-* Package Management
+To test out alternative themes, do =M-x load-theme=. Beware that sometimes artefacts of old themes persist and make new ones look bad; =M-x disable-theme= prevents this to an extent.
 
-Declare which archives to use, syncing them on start. Always-ensure downloads needed packages not on the system.
+** Ligatures and Fancy Characters
 
 #+begin_src emacs-lisp
 
-  (require 'package)
-  (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                           ("elpa" . "https://elpa.gnu.org/packages/")))
+  ;; Fancifies TeX-style quotation marks
+  (electric-quote-mode t)
 
-  (package-initialize)
-  (unless package-archive-contents
-    (package-refresh-contents))
+  ;; Replace e.g. lambda -> λ in Emacs Lisp mode,
+  ;; or \alpha -> α in TeX-mode
+  (global-prettify-symbols-mode t)
 
-  (eval-when-compile
-    (require 'use-package))
-
-  (setq use-package-always-ensure t)
-
-  (add-to-list 'load-path "/home/dnw/Code/PyPHITS/phits-mode")
-  (require 'phits-mode)
-
-  (add-to-list 'auto-mode-alist '("\\.inp\\'" . phits-mode))
-  (add-to-list 'auto-mode-alist '("\\.out\\'" . phits-mode))
+  ;; Enables fonts' ligature support---Iosevka has some good ones.
+  (use-package ligature
+    :config
+    (global-ligature-mode t)
+    (ligature-set-ligatures
+     '(prog-mode org-mode)
+     '("-<<" "-<" "-<-" "<--" "<---" "<<-" "<-" "->" "->>" "-->" "--->" "->-" ">-" ">>-"
+       "=<<" "=<" "=<=" "<==" "<===" "<<=" "<=" "=>" "=>>" "==>" "===>" "=>=" ">=" ">>="
+       "<->" "<-->" "<--->" "<---->" "<=>" "<==>" "<===>" "<====>" "::" ":::" "__"
+       "<~~" "</" "</>" "/>" "~~>" "==" "!=" "/=" "~=" "<>" "===" "!==" "!===" "=/=" "=!="
+       "<:" ":=" "*=" "*+" "<*" "<*>" "*>" "<|" "<|>" "|>" "<." "<.>" ".>" "+*" "=*" "=:" ":>"
+       "(*" "*)" "/*" "*/" "[|" "|]" "{|" "|}" "++" "+++" "\\/" "/\\" "|-" "-|" "<!--" "<!---")))
 
 #+end_src
 
-* Path from Shell
+All of this can be set by-mode or by-buffer, by setting hooks with or manually invoking the non-global versions of the above.
 
-Binaries on the zsh path become part of the Emacs path automatically.
+* General Text Interaction
+
+There are lots of ways to search, jump, move through, highlight, rearrange, display, etc. parts of text that're common across large swathes of modes.
+
+** Basic Movement and Alteration
+
+Not too much configuration here. The keys are mnemonics and already so ingrained in my muscle memory I'd have difficulty using anything else.
+
+However, expanding a file by typing newlines manually can get annoying.
 
 #+begin_src emacs-lisp
 
-  (use-package exec-path-from-shell
-
-    :init
-    (setq exec-path-from-shell-variables '("PATH" "MANPATH" "GUIX_PROFILE" "PHITSPATH"))
-    (when (memq window-system '(mac ns x))
-      (exec-path-from-shell-initialize)))
+  ;; C-n expands the file.
+  (setq next-line-add-newlines t)
 
 #+end_src
 
-* No Littering!
+As noted above, see the tutorial with =C-h t= for the basics. The commands are documented pretty extensively in the manual:
 
-Write backups and autosaves to .emacs.d, instead of strewing them across the filesystem.
+- [[info:emacs#Moving Point][Moving the Point]]
+- [[info:emacs#Scrolling][Scrolling]]
+- [[info:emacs#Recentering][Recentering]]
+- [[info:emacs#Inserting Text][Inserting Text]]
+- [[info:emacs#Erasing][Erasing]]
+- [[info:emacs#Blank Lines][Blank Lines]]
+- [[info:emacs#Transpose][Transpose]]
+- [[info:emacs#Fixing Case][Fixing Case]]
+- [[info:emacs#Indentation][Indentation]]
+- [[info:emacs#Words][Words]]
+- [[info:emacs#Sentences][Sentences]]
+- [[info:emacs#Paragraphs][Paragraphs]]
+- [[info:emacs#Moving by Defuns][Moving by Defuns]]
+- [[info:emacs#Moving by Parens][Moving by Parens]]
+- [[info:emacs#Comment Commands][Comment Commands]]
+- [[info:emacs#MixedCase Words][MixedCase Words]]
+
+Additionally useful will be the various [[info:emacs#Search][Search]] features; however, we rebind the default =isearch= on =C-s= to =consult-search=. Note especially the features for dynamically modifying search/replace.
+
+** Regions, Yanks, Kills, (Book)Marks, and Registers
+
+Emacs has many faculties for saving positions in buffers to refer to later. These features employ the concept of [[info:emacs#Mark][marks and regions]]. However, by default, the mark is intertwined with the region in a slightly annoying way, which makes it hard/unweildly to use the mark ring as a "scratch" poisition storage.
 
 #+begin_src emacs-lisp
 
-  (use-package no-littering)
+  ;; Config snippet courtesy Mickey Petersen's /Mastering Emacs/.
+  ;; It sets up bindings for using the mark independent from the region,
+  ;; without giving up transient-mark-mode.
+  (defun dnw/push-mark-no-activate ()
+    "Pushes `point' to `mark-ring' and does not activate the region.
+  Equivalent to \\[set-mark-command] when \\[transient-mark-mode] is disabled."
+    (interactive)
+    (push-mark (point) t nil)
+    (message "Pushed mark to ring"))
 
-  (setq auto-save-file-name-transforms
-        `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
+  (defun dnw/jump-to-mark ()
+    "Jumps to the local mark, respecting the `mark-ring' order.
+  This is the same as using \\[set-mark-command] with prefix argument."
+    (interactive)
+    (set-mark-command 1))
+
+  (defun dnw/exchange-point-and-mark-no-activate ()
+    "Identical to \\[exchange-point-and-mark] but will not activate the region."
+    (interactive)
+    (exchange-point-and-mark)
+    (deactivate-mark nil))
+
+  ;; Bind our alternatives.
+  (global-set-key (kbd "C-`") 'dnw/push-mark-no-activate)
+  (global-set-key (kbd "M-`") 'dnw/jump-to-mark)
+  (define-key global-map [remap exchange-point-and-mark] 'dnw/exchange-point-and-mark-no-activate)
 
 #+end_src
 
-* Completion Framework
+Many commands (even some of the ones often forgotten about, like =M-d= / =kill-word=) store the region in the [[info:emacs#Killing][kill ring]], a stack with wraparound onto which values are continually pushed. Regions and marks (among a few other things) can be stored in a common set of [[info:emacs#Registers][Registers]], one-character-named, cleared-on-exit variables. Marks can additionally be stored in [[info:emacs#Bookmarks][Bookmarks]], which are longer-named variables which may be saved to a file to persist between sessions.
 
-** Vertico (Minibuffer UI)
+Hiding among some of the documentation above are [[info:emacs#Rectangles][Rectangle]] regions: exactly what they sound like. They seem to have their own, separate kill storage, for only one rectangle at a time, but the same registers. Rectangle commands are very useful in situations where it's necessary to modify some text in the middle of an aligned, high-depth text structure.
+
+** Undo
+
+One of Emacs' best features is its lossless undo. Undo undoes itself---so, at least within the confines of the undo limit, the buffer never enters an unrecoverable state. Things further in the past are always just more undos away. However, this isn't very semantic. Often, it's hard to remember how many undos have been done, or what the state of the buffer was before three different bad ideas hit in some weird order. Additionally, there's lots of spamming/numeric-argumenting =C-/= through the same or similar states over and over again.  This is substantially improved by realizing the edit history exactly as users think of it: a tree of states.
+
+#+begin_src emacs-lisp
+
+  (use-package undo-tree
+    :init (global-undo-tree-mode)
+    (setq undo-tree-auto-save-history nil)) ;; This litters WAY too much
+
+#+end_src
+
+See the [[help:Package][package documentation]] for the set of basic keys (which align with the default =C-/= and =C-?= for the basics); there are very cool visualization and state-storage commands.
+
+** Macros
+
+One of the most helpful features of Emacs is its extremely deep [[info:emacs#Keyboard Macros][keyboard macro]] system. In particular, the fact these macros extend to all Emacs interfaces, e.g. =C-s=, =M-x=, and =M-:=, enables them to perform almost any repetitive task on files. Look to record one when doing any editing that feels boring; most likely there's something lurking! Save any particularly general ones for later.
+
+** Input Methods
+
+One of Emacs' hallmark features is its level of support for non-Latin scripts. Input methods are the way it supports entry of characters from those scripts on a standard US keyboard---after enabling one, characters you type can be matched against indices into a character set, from which the actual character can be selected and inserted. I occasionally have a reason to use my high-school Chinese; it's great for that. More commonly, I use the TeX input method to embed mathematical characters where LaTeX fragments are impractical or ugly.
+
+To select and enable an alternate input method, use =C-\=. Subsequent invocations will toggle between the "normal" input method and the alternate. In case you use more than 2, =C-x RET C-\= will present the same input-method minibuffer selection, and change the alternate to your choice.
+
+** Delimiter Management
+
+Stuff of the form "<begin-token> content <end-token>" is ubiquitous, and can be much improved.
+
+#+begin_src emacs-lisp
+
+  ;; Make each nesting level of parenthesis a different color, to avoid counting.
+  (use-package rainbow-delimiters
+    :hook ((prog-mode . rainbow-delimiters-mode)
+           (LaTeX-mode . rainbow-delimiters-mode)))
+
+  ;; This will automatically create matched pairs whenever open delimiters are typed,
+  ;; highlight unmatched closing delimiters, etc.
+  (use-package smartparens
+    :hook ((prog-mode . smartparens-mode)
+           (LaTeX-mode . smartparens-mode)
+           (org-mode . smartparens-mode))
+    :config
+    (require 'smartparens-latex))
+
+  ;; Built-in that'll highlight the counterpart to whichever paren your cursor is over.
+  (use-package paren
+    :config
+    (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
+    (show-paren-mode t))
+
+
+#+end_src
+
+** Long-Distance Navigation
+
+Counting and doing =C-f 57= isn't fun. Long-term, I'd like to develop eye-tracking-based mouse control, so you'd just hit a keyboard button to do mouse things where your already looking, but in the interim, =avy= will do.
+
+#+begin_src emacs-lisp
+
+  (use-package avy
+    :bind
+    ("C-:" . avy-goto-char)
+    ("C-'" . avy-goto-char-2)
+    ("M-g g" . avy-goto-line)
+    ("M-g M-g" . avy-goto-line))
+
+#+end_src
+
+While looking at a place you want to jump to, press =C-'= , enter two characters nearest it, and type the characters it changes to. The point will end up there when it's disambiguated fully. Use =C-:= if you prefer to type one initial character and more subsequent ones. The =avy-goto-line= parts replace the default =goto-line= binding with a function with similar behavior: type two characters to jump to the head of any line. The original =goto-line= behavior (jump based on line number) is recovered by typing a number.
+
+** Whitespace Behavior
+
+Save space, and make things look nice.
+
+#+begin_src emacs-lisp
+
+  ;; Spaces over tabs
+  (setq tab-always-indent 'complete)
+  (setq align-to-tab-stop nil)
+
+  ;; Require files to end in newlines
+  (setq require-final-newline t)
+
+  ;; Trim trailing line whitespace on save
+  (use-package ws-butler
+    :hook ((text-mode . ws-butler-mode)
+           (prog-mode . ws-butler-mode)))
+
+#+end_src
+
+** Better English
+
+
+Ispell is the built-in package for interfacing with dictionaries. There is a =grammarly= package on MELPA, but I'm squeamish about sending all my text to a nonfree network service for semantic analysis. And the FOSS, local package =languagetool= (at least, in conjunction with =langtool= for Emacs) is slow as can be and very unhelpful. It couldn't find a problem with "The quick fox brown jumps over the dog, lazy."
+
+#+begin_src emacs-lisp
+
+  (use-package ispell
+    ;; Could use ispell, hunspell, aspell, or enchant.
+    :ensure-system-package (aspell ("/usr/lib/aspell/american.alias" . aspell-en)))
+
+
+#+end_src
+
+Use =M-$= to spell-check a word. Use =M-x ispell= to spell-check the whole buffer. =flyspell-mode= and =flyspell-prog-mode= can be enabled for a traditional red-squiggly-line experience, though I use enough technical words and spell well enough (usually) to find it annoying. Ensure you have a good word-list available.
+
+* Completion and Templating
+
+Sometimes, you're programming and forget what things are called. Or you don't want to keep typing a long, overly-descriptive Java name in someone else's code. Or, you forget what the full name of the function you want to type into the minibuffer is, but you know it was something to do with "doom." Enter completion. There are two places where it operates: when the point is in an ordinary buffer, and when it's in the minibuffer. The default system has the unfortunate quality of opening a whole buffer with completion candidates, and does so only after you explicitly prompt it for completions via a keypress. There are many systems which instead populate the minibuffer with completion candidates off the bat, and provide IDE-style small-window popups in-buffer. However, many are very heavy and use their own, entirely separate system for completion.
+
+The =vertico= stack instead alters the built-in =completing-read= for minibuffer completions. It's small, modular, lightweight, and well-integrated with the default Emacs facilities, and therefore other packages that use those by extension. It's all made by the same guy, so its well-integration is expected. In Emacs 29, there will be an upgraded =icomplete= that has a similar UI to vertico itself. We'll see if it works as well.
+
+** Vertico
+
+The starting place of it all only modifies the minibuffer UI, by presenting a VERTical list of COmpletions in the minibuffer.
 
 #+begin_src emacs-lisp
 
   (use-package vertico
     :init (vertico-mode)
-    :custom (vertico-cycle t))
+    :custom
+    ;; Wrap completions at the top and bottom of the list.
+    (vertico-cycle t))
+
+  ;; Add nice icons from DOOM's nerd-fonts from earlier to minibuffer completions.
+  (use-package nerd-icons-completion)
 
 #+end_src
 
-** Corfu (At-Point UI)
+** Corfu
+
+Corfu only modifies the UI for completion in the region, by popping up a small frame instead of a completions buffer. Should behave consistently with vertico.
 
 #+begin_src emacs-lisp
 
@@ -185,34 +488,41 @@ Write backups and autosaves to .emacs.d, instead of strewing them across the fil
 
 #+end_src
 
-*** Kind-Icon (Corfu Menu Sugar)
+*** Kind Icon
+
+Adds type-based icon annotations in the left margin of the Corfu buffer, so you can tell if the candidate is a function etc.
 
 #+begin_src emacs-lisp
 
-  ;; (use-package kind-icon
-  ;;   :ensure t
-  ;;   :after corfu
-  ;;   :custom
-  ;;   (kind-icon-default-face 'corfu-default) ; to compute blended backgrounds correctly
-  ;;   :config
-  ;;   (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
+  (use-package kind-icon
+    :ensure t
+    :after corfu
+    :custom
+    (kind-icon-default-face 'corfu-default) ;; to compute blended backgrounds correctly
+    :config
+    (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
 
-  ;; Doesn't work :(
 #+end_src
 
-** Orderless (Candidate Filtering)
+** Orderless
+
+Changes the way the completion prompt is used to search for candidates to enable fuzzy matching, regexes etc. This is very flexible, and can be used independent of the above.
 
 #+begin_src emacs-lisp
 
   (use-package orderless
     :init
-    (setq completion-styles '(orderless)
+    (setq completion-styles '(orderless basic) ;; basic is required for TRAMP hostname completion
           completion-category-defaults nil
           completion-category-overrides '((file (styles . (partial-completion))))))
 
 #+end_src
 
-** Consult (Completion Command Alternatives)
+The prompt (e.g. what you type into =M-x=) is divided into space-separated components. Each component is interpreted as either a regexp or a literal match. Any candidate that matches the all of the components in any order, possibly with some intervening characters, is preserved.
+
+** Consult
+
+A lot of the default navigation commands are pretty clumsy. Consult provides a lot of alternatives, such as search and history that shows the context around the match. I currently only use it for those two cases, but when I start using bookmarks, registers, or the kill ring in a more interesting way, it might pay to do more.
 
 #+begin_src emacs-lisp
 
@@ -223,7 +533,9 @@ Write backups and autosaves to .emacs.d, instead of strewing them across the fil
 
 #+end_src
 
-** Marginalia (Completion Annotations)
+** Marginalia
+
+Like Corfu, but for the minibuffer. Can display things like documentation, file permissions, etc. alongside each candidate in the minibuffer.
 
 #+begin_src emacs-lisp
 
@@ -235,24 +547,61 @@ Write backups and autosaves to .emacs.d, instead of strewing them across the fil
 
 #+end_src
 
-** Dabbrev
+** Embark
+
+This is kind of like right-click, but for the keyboard, and better than rebinding the mouse key (which you can do!). =embark-act= pops up a completion prompt based on whatever content is under or near the point.
 
 #+begin_src emacs-lisp
 
+  ;; From the recommended config.
+  (use-package embark
+    :bind
+    (("C-." . embark-act)
+     ("C-;" . embark-dwim)
+     ("C-h B" . embark-bindings))
+    :init (add-hook 'eldoc-documentation-functions #'embark-eldoc-first-target)
+    :config
+    (setq prefix-help-command #'embark-prefix-help-command) ;; No idea what this does, but they said to add it.
+    (setq embark-prompter #'embark-completing-read-prompter)
+    (setq embark-indicators
+          '(embark-minimal-indicator
+            embark-highlight-indicator
+            embark-isearch-highlight-indicator)))
+
+  ;; Consult integration.
+  (use-package embark-consult
+    :hook
+    (embark-collect-mode . consult-preview-at-point-mode))
+
+#+end_src
+
+** Abbreviations
+
+When typing a long something repetitively, Emacs’ built-in [[info:emacs#Abbrevs][Abbrevs]] can help.
+
+Sometimes, you want completion, but you don't have anything providing the completion. =dabbrev= helps provide that by looking through the words in the buffer for things you've already typed to use as candidates.
+
+#+begin_src emacs-lisp
+
+  ;; Notify when a defined abbrev is missed.
+  (setq abbrev-suggest t)
+
+  ;; Map the more-useful function to the more-ergonomic key.
   (use-package dabbrev
     :bind (("M-/" . dabbrev-completion)
            ("C-M-/" . dabbrev-expand)))
 
 #+end_src
 
-** Embark at some point?
+Note the ways to customize what =dabbrev= considers a word, and distinct.
 
-* Auto-Insert
+** Auto-Insert
 
-File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d/insert/=) on opening file type.
+The built-in =autoinsert= package makes filling out boilerplate easy. I currently use it extensively for choosing between a few LaTeX preambles.
 
 #+begin_src emacs-lisp
 
+  ;; Let the user enter a due date (very buggy).
   (defun dnw/prompt-date ()
     (let ((date (read-string "Due date: "))
                                             (now  (split-string (format-time-string "%e %B %Y" (current-time)))))
@@ -272,6 +621,7 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
                                                        " "
                                                        (caddr now))))))
 
+  ;; Some assorted preambles.
   (setq dnw/autoinsert-latex-presets
         '(("Physics" . (nil "\\documentclass{article}\n\n"
 
@@ -337,6 +687,7 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
                         _ "\n\\begin{document}\n"
                         _ "\n\\end{document}"))))
 
+  ;; Configure the autoinsert package to use the above.
   (use-package autoinsert
     :hook (find-file . auto-insert)
     :init
@@ -355,99 +706,251 @@ File templates from =auto-insert-directory= (which I have defined as =~/.emacs.d
 
 #+end_src
 
+** Language Server Protocol
 
-* Helpful (Better Documentation)
+VSCode's Language Server Protocol helps provide editors with completions, documentation, project-wide renaming, etc. based on more detailed semantic analyses performed by an externally-installed language server.
 
-Using /documentation command/ defaults to the much better helpful version.
+There are three choices: =lsp-mode=, =eglot=, and =lsp-bridge=. =lsp-mode= has an obnoxious UI, and =lsp-bridge= is lightning-fast but cantankerous (requiring you use its completion framework). =eglot= is servicable on both fronts, and will be built-in to 29.
 
 #+begin_src emacs-lisp
 
+  (use-package eglot)
+
+#+end_src
+
+=eglot= plugs in to Emacs' built-in =xref= utilities. To:
+
+- Find definition -> =xref-find-definitions= / =M-.=
+- Find references -> =xref-find-references= / =M-?=
+
+* Environmental Concerns
+
+Emacs has to interact with the rest of the system at some point, unfortunately.
+
+** Files
+
+Emacs editing facilities technically manipulate only buffers. It's via [[info:emacs#Files][file handling commands]], which populate buffers with file contents and /vice versa/, that Emacs actually edits text in a normal sense.
+
+Interesting features people often gloss over: [[info:emacs#Filesets][Filesets]], =C-x i=, and =C-x C-r=.
+** Dired
+
+[[info:emacs#Dired][Dired]] is Emacs' file management system. If there's ever need for opening files in external programs, =dired-open= will help with that.
+
+#+begin_src emacs-lisp
+
+  ;; Mostly configuring C-x C-j to open dired at the pwd.
+  (use-package dired
+    :ensure nil
+    :commands (dired dired-jump)
+    :bind (("C-x C-j" . dired-jump))
+    :custom ((dired-listing-switches "-ahgo --group-directories-first")))
+
+  ;; Prevents dired from dirtying the buffer list with directories.
+  (use-package dired-single
+    :after dired)
+
+  ;; Use the nerd-fonts installed with the DOOM UI elements for file icons.
+  (use-package nerd-icons-dired)
+
+#+end_src
+
+Invoke it with =M-x dired= or the =C-x C-j= bound above. Use =C-h m= as always to see the keybindings if you forget; interesting features people neglect are: the =%= prefix, =image-dired=, =w=, =A=, compression with =Z= / =c=, and =epa='s dired integration under =:=.
+
+** TRAMP
+
+Transparent Remote Access, Multiple Protocols allows you to access files, shells, etc. on remote machines over an absurd variety of protocols as if they were local. No need to learn the *Editor of the Beast* because the remote doesn't have Emacs; you can just use your Emacs, with no copying-of-config necessary. Also useful for editing files owned by root, via the sudo protocol. To use it, just =C-x C-f /protocol:user@remote:port/path/to/file=
+
+** Vterm
+
+=vterm= is a full-featured terminal. Emacs has built-in eshell, shell, and (ansi-)term, ordered roughly in order of the number of programs' output they break. I like eshell for Emacs integration, so I use that as a rule. However, it does break a lot; luckily, it provides a facility for using another terminal (external to Emacs or otherwise) to run certain commands known to break it. =vterm=, unlike any of the built-ins, handles everything, even including ncurses programs. It has no Windows compatibility, but then again the only thing that shines there is eshell, so the config is covered for such misfortune.
+
+#+begin_src emacs-lisp
+
+  (use-package vterm
+    :config (define-key vterm-mode-map (kbd "C-q") #'vterm-send-next-key)
+    :ensure-system-package (cmake ("/usr/lib/libvterm.so.0" . libvterm) libtool))
+
+#+end_src
+
+You need to download libvterm, either from your package manager or at the package's prompting.  There is a shell config snippet needed to make the integration work well:
+
+#+begin_src shell :tangle no
+
+  vterm_printf() {
+      if [ -n "$TMUX" ] && ([ "${TERM%%-*}" = "tmux" ] || [ "${TERM%%-*}" = "screen" ]); then
+          printf "\ePtmux;\e\e]%s\007\e\\" "$1"
+      elif [ "${TERM%%-*}" = "screen" ]; then
+          printf "\eP\e]%s\007\e\\" "$1"
+      else
+          printf "\e]%s\e\\" "$1"
+      fi
+  }
+
+#+end_src
+
+** Eshell
+
+Eshell is a shell writen entirely in Emacs Lisp, which supports execution of Elisp forms on the command line and integration thereof into shell workflows. The integration with the rest of Emacs is second-to-none.
+
+#+begin_src emacs-lisp
+
+  ;; Use last two components of the pwd, excepting the home directory, as the pre-prompt text.
+  ;; Pretty flaky.
+  (setq dnw/user-account "dnw")
+  (defun dnw/prompt-prefix ()
+    (let ((guess (apply
+                  'concat
+                  (-map
+                   (lambda (x)
+                     (if (string= x dnw/user-account)
+                          "~/"
+                       (concat x "/")))
+                   (seq-subseq
+                    ;; extra ""'s are to prevent slicing errors
+                    (cons "" (cons "" (split-string (eshell/pwd) "/")))
+                    -2)))))
+      (if (string= guess "home/~/")
+          "~"
+        (string-remove-suffix "/" guess))))
+
+  ;; Change the way the buffer is scrolled on output.
+  (remove-hook 'eshell-output-filter-functions
+               'eshell-postoutput-scroll-to-bottom)
+
+  ;; Customize the interface---motd, prompt, etc
+  (defun dnw/prompt ()
+    (concat
+     (propertize
+      (dnw/prompt-prefix)
+      'font-lock-face '(:foreground "#4068A3"))
+     (propertize " ᛋ" 'font-lock-face '(:foreground "#CB77F9"))
+     (propertize " " 'font-lock-face "default")))
+
+  (setq eshell-prompt-regexp "^[^ᛋ\n]* ᛋ ")
+
+  (setq eshell-highlight-prompt nil
+        eshell-prompt-function #'dnw/prompt)
+
+  ;; Set motd message.
+  (setq eshell-banner-message "Formal methods are merely sufficiently good documentation. 🗿\n\n")
+
+  ;; Patch to use vterm rather than term for visual commands.
+  (use-package eshell-vterm)
+
+  ;; Additional commants for which to use vterm.
+  ;; TODO: doesn't appear to work, even with eshell/sudo
+  (add-to-list 'eshell-visual-commands "pacman")
+
+  ;; Use the better-integrated elisp command versions over the binaries'---be careful, they might be slow.
+  ;; Enables sudo integration below; alias sudo to eshell/sudo if you want to change.
+  (setq eshell-prefer-lisp-functions t)
+  (setq eshell-prefer-lisp-variables t)
+
+  ;; So passwords don't end up in the buffer in plaintext.
+  ;; TODO: currently doesn't appear to work at all.
+  (require 'em-tramp)
+
+#+end_src
+
+** TODO Compiling
+** TODO Debugging
+** Editing Server
+
+There are many ways to start Emacs as a server/daemon/service. This allows external shell programs to use =emacsclient= to do Emacs things without the overhead of spinning up a second interpreter and running the init file a second time.I start the daemon as a systemd service, and connect to it in my =.xinitrc=; this allows me to use emacsclient in =.zshrc=.
+
+The service is the following file, located at =~/.config/systemd/user/emacs.service=.
+
+#+begin_src shell :tangle no
+
+  [Unit]
+  Description=Emacs editor server
+  Documentation=info:emacs man:emacs(1) https://gnu.org/software/emacs/
+
+  [Service]
+  Type=forking
+  ExecStart=/usr/bin/emacs --daemon -f exwm-enable
+  ExecStop=/user/bin/emacsclient --eval "(kill-emacs)"
+  Environment=SSH_AUTH_SOCK=%t/keyring/ssh
+  Restart=on-failure
+
+  [Install]
+  WantedBy=default.target
+
+#+end_src
+
+Running =systemctl --user enable emacs= enables the daemon, and =systemctl --user start emacs= starts it.
+
+** Being a Good UNIX Citizen
+
+By default, Emacs doesn't get its information about available binaries from the shell, but from an exec-path somewhere, and creates annoying auto-save files in the same directory as the file being edited.
+
+#+begin_src emacs-lisp
+
+    ;; Write backups and autosaves to .emacs.d, instead of strewing them across the filesystem.
+    (use-package no-littering)
+    (setq auto-save-file-name-transforms
+          `((".*" ,(no-littering-expand-var-file-name "auto-save/") t)))
+
+    ;; Binaries on the shell path become accessible to Emacs automatically.
+    (use-package exec-path-from-shell
+      :init
+      (setq exec-path-from-shell-variables '("PATH" "MANPATH" "PHITSPATH"))
+      (when (memq window-system '(mac ns x))
+        (exec-path-from-shell-initialize)))
+
+#+end_src
+
+** System Status
+
+Emacs has many features to relay information about the state of the system.
+
+#+begin_src emacs-lisp
+
+  ;; Mode-line battery% indicator.
+  (display-battery-mode)
+
+#+end_src
+
+* Secrets Management
+
+Emacs can do all the nasty password and authentication management for us.
+
+** UNIX Pass
+
+
+The command-line =pass= program interacts neatly with GnuPG and the clipboard to enable storage and access of secrets in an elegant, minimal manner. These are the Emacs tools for interacting with it.
+
+#+begin_src emacs-lisp
+
+  ;; Unlock keys via gpg-agent on the modeline.
+  ;; Requires allow-emacs-pinentry in ~/.gnupg/gpg-agent.conf
+  (use-package pinentry)
+
+  ;; Access pass via Emacs.
+  (use-package password-store
+    :config (pinentry-start)
+    :ensure-system-package pass)
+
+#+end_src
+
+* Documentation
+** Of Internals
+
+#+begin_src emacs-lisp
+
+  ;; Souped-up `C-h` interface.
   (use-package helpful
-    :commands (helpful-callable helpful-variable helpful-command helpful-key)
-    :custom
-    (counsel-describe-function-function #'helpful-callable)
-    (counsel-describe-variable-function #'helpful-variable)
     :bind
     ([remap describe-function] . helpful-function)
     ([remap describe-command] . helpful-command)
     ([remap describe-variable] . helpful-variable)
-    ([remap describe-key] . helpful-key))
+    ([remap describe-key] . helpful-key)
+    ([remap describe-symbol] . helpful-symbol)
+    :config
+    (setq helpful-max-buffers 1)) ;; Otherwise, litters buffer list way too much.
 
-#+end_src
 
-* More UI Configuration
-
-** DOOM Modeline
-
-A prettier and more functional modeline. All-the-icons is required for e.g. the org logo when in org mode.
-
-#+begin_src emacs-lisp
-
-  (use-package doom-modeline
-    :ensure t
-    :init (doom-modeline-mode 1))
-
-  (use-package diminish)
-
-  (use-package all-the-icons) ;; requires M-x all-the-icons-install-fonts on first load
-
-#+end_src
-
-** Set Theme
-
-These have better integration with package-spawned buffers. And are quite tasteful.
-
-#+begin_src emacs-lisp
-
-  (use-package doom-themes
-    :init (load-theme 'doom-tomorrow-night t))
-
-#+end_src
-
-** Parenthesis Management
-
-Color pairs of region-marking characters, automatically insert and delete matching ones, & highlight matching parens.
-
-#+begin_src emacs-lisp
-
-    (use-package rainbow-delimiters
-      :hook ((prog-mode . rainbow-delimiters-mode)
-             (LaTeX-mode . rainbow-delimiters-mode)))
-
-    (use-package smartparens
-      :hook ((prog-mode . smartparens-mode)
-             (LaTeX-mode . smartparens-mode)
-             (org-mode . smartparens-mode))
-      :config
-      (require 'smartparens-latex))
-
-    (use-package paren
-      :config
-      (set-face-attribute 'show-paren-match-expression nil :background "#363e4a")
-      (show-paren-mode 1))
-
-#+end_src
-
-** Whitespace Management
-
-Require final newline & trim trailing whitespace automatically.
-
-#+begin_src emacs-lisp
-
-  (setq require-final-newline t)
-
-  (use-package ws-butler
-    :hook ((text-mode . ws-butler-mode)
-           (prog-mode . ws-butler-mode)))
-
-#+end_src
-
-* Which-key
-
-In case of brain-fart: display all bound keystrokes.
-
-#+begin_src emacs-lisp
-
+  ;; In case of brain fart: display possible prefix key follow-ups if idle for too long.
   (use-package which-key
     :defer 0
     :diminish which-key-mode
@@ -457,14 +960,79 @@ In case of brain-fart: display all bound keystrokes.
 
 #+end_src
 
-* Org Mode
-
-** Basic Setup
-
-Nicer collapsed heading indicator, document-like variable pitch font, etc.
+** Of Externals
 
 #+begin_src emacs-lisp
 
+  (setq Info-use-header-line nil)
+
+#+end_src
+
+* Source Control
+
+Things related to git, cvs, /et. al/. There are some built-in features under =C-x p=, see [[info:emacs#Projects][Projects]].
+
+** Projectile
+
+Helps make Emacs aware of project structure via source-control files, and provides commands that operate on and with respect to that structure.
+
+#+begin_src emacs-lisp
+
+  (use-package projectile
+    :diminish projectile-mode
+    :config (projectile-mode)
+    :custom ((projectile-completion-system 'vertico))
+    :bind-keymap
+    ("C-c p" . projectile-command-map)
+    :init
+    (when (file-directory-p "~")
+      (setq projectile-project-search-path '("~")))
+    (setq projectile-switch-project-action #'projectile-dired))
+
+#+end_src
+
+** Magit
+TODO: configure in-depth
+#+begin_src emacs-lisp
+
+  (use-package magit
+    :commands (magit-status magit-get-current-branch)
+    :custom
+    (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
+
+#+end_src
+
+* Computation Environments
+
+Setups for making the smart rock serve your whims, in different ways.
+
+** PHITS
+
+A mode I wrote/am writing for interacting with JAEA's PHITS.
+
+#+begin_src emacs-lisp
+
+  (setq phits-set-up nil)
+  (if phits-set-up
+      (progn
+        (add-to-list 'load-path "/home/dnw/Code/PyPHITS/phits-mode")
+        (require 'phits-mode)
+        (add-to-list 'auto-mode-alist '("\\.inp\\'" . phits-mode))
+        (add-to-list 'auto-mode-alist '("\\.out\\'" . phits-mode))))
+
+#+end_src
+
+** Org Mode
+
+Org is a markup language, like Markdown or HTML, for which =org-mode= is an extensive set of tooling. It is so extensive that said description drastically undersells its awesomeness.
+
+*** Beautification
+
+Even though Org is pretty readable as-is, we can get basically WYSIWYG levels with a little effort.
+
+#+begin_src emacs-lisp
+
+  ;; Makes the org-mode buffer look like rich text.
   (defun dnw/org-mode-setup ()
     (org-indent-mode)
     (variable-pitch-mode 1)
@@ -473,127 +1041,125 @@ Nicer collapsed heading indicator, document-like variable pitch font, etc.
   (use-package org
     :commands (org-capture org-agenda)
     :hook (org-mode . dnw/org-mode-setup)
-    :bind ("C-c C-x C-l" . org-latex-preview)
+    :bind
+    ("C-c C-x C-l" . org-latex-preview) ;; This is an awesome function that works outside of org-mode
+    ("C-c l" . org-store-link)
     :config
     (setq org-ellipsis " ▼")
     (setq org-latex-create-formula-image-program 'imagemagick))
 
-#+end_src
+  ;; Prevent text from getting uncomfortably wide on widescreen monitors.
+  (defun dnw/org-mode-visual-fill ()
+    (setq visual-fill-column-width 170
+          visual-fill-column-center-text t)
+    (visual-fill-column-mode 1))
 
-** Prettier Headings
+  ;; ibid.
+  (use-package visual-fill-column
+    :hook (org-mode . dnw/org-mode-visual-fill))
 
-Font scaling based on tree depth with some typographical subtleties.
-
-#+begin_src emacs-lisp
-
+  ;; Fancy bullet points in headings.
   (use-package org-bullets
     :after org
     :hook (org-mode . org-bullets-mode))
 
-  (with-eval-after-load 'org-faces (dolist (face '((org-level-1 . 1.2)
-                                                   (org-level-2 . 1.1)
-                                                   (org-level-3 . 1.05)
-                                                   (org-level-4 . 1.0)
-                                                   (org-level-5 . 1.0)
-                                                   (org-level-6 . 1.0)
-                                                   (org-level-7 . 1.0)
-                                                   (org-level-8 . 1.0)))
-                                     (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
+  ;; Adjust
+  (with-eval-after-load
+      'org-faces (dolist (face '((org-level-1 . 1.2)
+                                 (org-level-2 . 1.1)
+                                 (org-level-3 . 1.05)
+                                 (org-level-4 . 1.0)
+                                 (org-level-5 . 1.0)
+                                 (org-level-6 . 1.0)
+                                 (org-level-7 . 1.0)
+                                 (org-level-8 . 1.0)))
+                   (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
 
-                        (set-face-attribute 'fixed-pitch nil :font "Iosevka" :weight 'regular :height 1.0)
-                        (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
-                        (set-face-attribute 'org-code nil :inherit '(shadow fixed-pitch))
-                        (set-face-attribute 'org-table nil :inherit '(shadow fixed-pitch))
-                        (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
-                        (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
-                        (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
-                        (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
+      (set-face-attribute 'fixed-pitch nil :font "Iosevka" :weight 'regular :height 1.0)
+      (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
+      (set-face-attribute 'org-code nil :inherit '(shadow fixed-pitch))
+      (set-face-attribute 'org-table nil :inherit '(shadow fixed-pitch))
+      (set-face-attribute 'org-verbatim nil :inherit '(shadow fixed-pitch))
+      (set-face-attribute 'org-special-keyword nil :inherit '(font-lock-comment-face fixed-pitch))
+      (set-face-attribute 'org-meta-line nil :inherit '(font-lock-comment-face fixed-pitch))
+      (set-face-attribute 'org-checkbox nil :inherit 'fixed-pitch))
 
+  ;; Hide e.g. the /italics/ delimiters.
   (setq org-hide-emphasis-markers t)
 
+  ;; Make them appear again when the point is near them, so you don't get lost in things unseen.
   (use-package org-appear
     :hook (org-mode . org-appear-mode))
 
+  ;; Some wizardry that converts list indicators (normally -) to nice circumpunct characters.
   (font-lock-add-keywords 'org-mode
                           '(("^ *\\([-]\\) "
                              (0 (prog1 () (compose-region (match-beginning 1) (match-end 1) "•"))))))
 
 #+end_src
 
-** Visual Fill
+#+RESULTS:
 
-Comfy padding on the margins.
+*** Babel
+
+=org-babel= is a subsystem that allows actual /execution/ of code blocks embedded in org documents. The results of these code blocks can be composed for a Jupyter-like experience. It's a very beautiful thing---a great trick for data analysis is to yank plaintext data into an org-mode buffer, use =C-c |= to turn it into an org table, and then give that table a name and feed it into SQL, Python, R, or Julia source blocks to do analysis on it.
 
 #+begin_src emacs-lisp
 
-  (defun dnw/org-mode-visual-fill ()
-    (setq visual-fill-column-width 170
-          visual-fill-column-center-text t)
-    (visual-fill-column-mode 1))
+  ;; Load the modules for the languages desired.
+  (with-eval-after-load 'org
+    (org-babel-do-load-languages
+     'org-babel-load-languages
+     '((emacs-lisp . t)
+       (python . t)
+       (fortran . t)
+       (gnuplot t)
+       (R . t)
+       (sqlite . t)
+       (haskell . t)
+       (lua . t)
+       (shell . t)
+       (C . t)))
 
-  (use-package visual-fill-column
-    :hook (org-mode . dnw/org-mode-visual-fill))
+    ;; Disable annoying prompt.
+    (setq org-confirm-babel-evaluate nil)
+
+    ;; Typing e.g. =<el <TAB>= will automatically produce all the boilerplate for a source block.
+    (require 'org-tempo)
+    (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
+    (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+    (add-to-list 'org-structure-template-alist '("py" . "src python3"))
+    (add-to-list 'org-structure-template-alist '("ft" . "src fortran"))
+    (add-to-list 'org-structure-template-alist '("gp" . "src gnuplot"))
+    (add-to-list 'org-structure-template-alist '("sql" . "src sqlite"))
+    (add-to-list 'org-structure-template-alist '("r" . "src R"))
+    (add-to-list 'org-structure-template-alist '("hs" . "src haskell"))
+    (add-to-list 'org-structure-template-alist '("lu" . "src lua"))
+    (add-to-list 'org-structure-template-alist '("sys" . "src C")))
 
 #+end_src
 
-** Babel
+*** Tangle
 
-Evaluation of code blocks & abbreviated syntax for generating them.
-
-#+begin_src emacs-lisp
-
-    (with-eval-after-load 'org
-      (org-babel-do-load-languages
-       'org-babel-load-languages
-       '((emacs-lisp . t)
-         (python . t)
-         (fortran . t)
-         (gnuplot t)
-         (R . t)
-         (sqlite . t)
-         (haskell . t)
-         (lua . t)
-         (shell . t)
-         (C . t)))
-
-      (setq org-confirm-babel-evaluate nil)
-
-      (require 'org-tempo)
-
-      (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
-      (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
-      (add-to-list 'org-structure-template-alist '("py" . "src python3"))
-      (add-to-list 'org-structure-template-alist '("ft" . "src fortran"))
-      (add-to-list 'org-structure-template-alist '("gp" . "src gnuplot"))
-      (add-to-list 'org-structure-template-alist '("sql" . "src sqlite"))
-      (add-to-list 'org-structure-template-alist '("r" . "src R"))
-      (add-to-list 'org-structure-template-alist '("hs" . "src haskell"))
-      (add-to-list 'org-structure-template-alist '("lu" . "src lua"))
-      (add-to-list 'org-structure-template-alist '("sys" . "src C")))
-
-#+end_src
-
-
-** Tangle
-
-Dispatches code blocks from an org file to places on disk. M-x org-babel-tangle to write, or add an auto-tangle hook as below for frequently edited config files.
+Code blocks in org-mode can be written out to files on the disk. This is quite useful for literate configuration like this, especially for code snippets that don't depend on each other much or for languages like Haskell with great referential transparency, so that order doesn't matter.
 
 #+begin_src emacs-lisp
 
+  ;; Set up this file and this file alone to auto-tangle on save.
   (defun dnw/org-babel-tangle-config ()
     (when (string-equal (buffer-file-name)
                         (expand-file-name "~/.emacs.d/config.org"))
 
-    (let ((org-confirm-babel-evaluate nil))
-      (org-babel-tangle))))
+      (let ((org-confirm-babel-evaluate nil))
+        (org-babel-tangle))))
 
   (add-hook 'org-mode-hook (lambda () (add-hook 'after-save-hook #'dnw/org-babel-tangle-config)))
 
 #+end_src
 
-** Roam
+*** Roam
 
-The magic! Add additional capture templates here; for example, a "Structure" template for a note on a mathematical structure, or a "Theorem" template for a note on a theorem, etc.
+Org-roam is a system whereby notes can be briefly captured in a database, before refiling into a more complete ontology structure at a later date with tags and links, allowing the database to be queried at-will. I ended up just storing all my files flatly in the database and not linking between them at all, and so didn't really realize its full potential.
 
 #+begin_src emacs-lisp
 
@@ -638,19 +1204,19 @@ The magic! Add additional capture templates here; for example, a "Structure" tem
 
 #+end_src
 
-** Drill
+*** Drill
 
-Use the space-repitition method to memorize information
+Org-drill is a simple mechanism for creating org-formatted note-cards and memorizing them via spaced-repitition. It's much nicer than e.g. Quizlet, because 1. offline and FOSS, and 2. =org-latex-preview=.
 
 #+begin_src emacs-lisp
 
-  (use-package org-drill)
+  ;; (use-package org-drill)
 
 #+end_src
 
-** Present
+*** Present
 
-Simple, minimalist presentations in org-mode
+Org-present produces simple, elegant presentations from top-level org-mode headings.
 
 #+begin_src emacs-lisp
 
@@ -658,170 +1224,35 @@ Simple, minimalist presentations in org-mode
 
 #+end_src
 
-* Dired
+** TeX
 
-Make C-x C-j open dired at pwd. List directories first, and use all-the-icons to be pretty. Can be configured to use dired-open to use external file display programs by default
-instead of needing to '&' every time.
-
-#+begin_src emacs-lisp
-
-  (use-package dired
-    :ensure nil
-    :commands (dired dired-jump)
-    :bind (("C-x C-j" . dired-jump))
-    :custom ((dired-listing-switches "-ahgo --group-directories-first")))
-
-  (use-package dired-single
-    :after dired)
-
-  (use-package all-the-icons-dired
-    :hook (dired-mode . all-the-icons-dired-mode))
-
-#+end_src
-
-* LSP-Mode
-
-VSCode's Language Server protocol; a standard for project management that turns Emacs into a full IDE.
-
-** Initial Configuration
-
-Create a breadcrumbs hook that enables a path listing header on LSP mode buffers.
+Emacs' built-in TeX-editing features, via AUCTeX, are simply the most ergonomic ones for the macro system known to man.
 
 #+begin_src emacs-lisp
 
-  (use-package lsp-mode
-    :commands (lsp lsp-deferred)
-    :hook
-    ((c-mode) . lsp)
-    ((LaTeX-mode) . lsp)
-    (lsp-completion-mode . dnw/lsp-completion)
-    :init
-    (setq lsp-keymap-prefix "C-c l")
-    (defun dnw/lsp-completion ()
-      (setf (alist-get 'styles (alist-get 'lsp-capf completion-category-defaults))
-            '(orderless)))
-    :config
-    (lsp-enable-which-key-integration t)
-    :custom
-    (lsp-completion-provider :none))
-
-  (use-package lsp-ui
-    :hook (lsp-mode . lsp-ui-mode)
-    :custom
-    (setq lsp-ui-doc-position 'bottom))
-
-
-  (use-package flycheck
-    :defer t
-    :hook (lsp-mode . flycheck-mode))
-
-#+end_src
-
-** Company Mode
-
-Use company-mode style point completions in LSP-mode
-
-#+begin_src emacs-lisp
-
-  ;; (use-package company
-  ;;   :after lsp-mode
-  ;;   :hook (prog-mode . company-mode)
-  ;;   :bind
-  ;;   (:map company-active-map
-  ;;         ("<tab>" . company-complete-selection))
-  ;;   (:map lsp-mode-map
-  ;;         ("<tab>" . company-indent-or-complete-common))
-  ;;   :custom
-  ;;   (company-minimum-prefix-length 1)
-  ;;   (company-idle-delay 0.0))
-
-  ;; (eval-after-load 'company
-  ;;    '(add-to-list
-  ;;      'company-backends '(company-irony-c-headers
-  ;;                          company-irony
-  ;;                          company-rtags)))
-
-
-  ;; (use-package company-box
-  ;;   :hook (company-mode . company-box-mode))
-
-#+end_src
-
-* Source Control
-
-** Projectile
-
-Helps make Emacs aware of project structure like makefiles and .gitignore. I don't really use this I don't think; I should learn.
-
-#+begin_src emacs-lisp
-
-  ;; (use-package projectile
-  ;;   :diminish projectile-mode
-  ;;   :config (projectile-mode)
-  ;;   :custom ((projectile-completion-system 'ivy))
-  ;;   :bind-keymap
-  ;;   ("C-c p" . projectile-command-map)
-  ;;   :init
-  ;;   (when (file-directory-p "~")
-  ;;     (setq projectile-project-search-path '("~")))
-  ;;   (setq projectile-switch-project-action #'projectile-dired))
-
-  ;; (use-package counsel-projectile
-  ;;   :config (counsel-projectile-mode))
-
-#+end_src
-
-** Magit
-
-#+begin_src emacs-lisp
-
-  (use-package magit
-    :commands (magit-status magit-get-current-branch)
-    :custom
-    (magit-display-buffer-function #'magit-display-buffer-same-window-except-diff-v1))
-
-#+end_src
-
-* Yasnippet
-
-Code templates.
-
-#+begin_src emacs-lisp
-
-  ;; (use-package yasnippet
-  ;;   :hook ((prog-mode LaTeX-mode) . yas-minor-mode)
-  ;;   :config
-  ;;   (yas-reload-all))
-
-  ;; (use-package yasnippet-snippets)
-
-#+end_src
-
-* AUCTeX
-
-Powerful LaTeX editing. Display previews with Zathura using C-c C-c to compile; C-c C-v to view. Subsequent calls to C-c C-c automatically update the Zathura window.
-
-#+begin_src emacs-lisp
-
+  ;; TODO: synctex
   (use-package tex
     :ensure auctex
     :config
     (setq TeX-auto-save t)
     (setq TeX-parse-self t)
     (setq-default TeX-master t)
-    (setq LaTeX-command "latex -shell-escape")
+    (setq LaTeX-command "latex -shell-escape") ;; Warning: security risk; don't compile third-party source.
     (add-hook 'LaTeX-mode-hook 'visual-line-mode)
     (add-hook 'LaTeX-mode-hook 'flyspell-mode)
     (add-hook 'LaTeX-mode-hook 'LaTeX-math-mode)
     (add-hook 'LaTeX-mode-hook 'turn-on-reftex)
     (setq reftex-plug-into-AUCTeX t)
-    (setq TeX-view-program-selection '((output-pdf "Zathura")))
-    (setq TeX-electric-sub-and-superscript t))
+    (setq TeX-electric-sub-and-superscript t) ;; really nice raising and lowering of sub- and superscripts in the source lines.
+    (setq TeX-view-program-selection '((output-pdf "Zathura"))))
 
 #+end_src
 
-* PDF Viewer
+=C-c C-c= to compile. =C-c C-v= to view. Subsequent recompilation automatically updates the window.
 
+** PDF
+
+TODO: upgrade
 Interact with PDFs from Emacs. Great for working with AUCTeX apparently.
 
 #+begin_src emacs-lisp
@@ -832,198 +1263,99 @@ Interact with PDFs from Emacs. Great for working with AUCTeX apparently.
   ;;   (add-hook 'TeX-after-compilation-finished-functions #'TeX-revert-document-buffer)
   ;;   (pdf-loader-install))
 #+end_src
-* Terminal Modes
 
-** Term
+** Haskell
 
-Default to zsh.
-
-#+begin_src emacs-lisp
-
-  (use-package term
-    :commands term
-    :config
-    (setq explicit-shell-file-name "zsh"))
-
-  (use-package eterm-256color
-    :hook (term-mode . eterm-256color-mode))
-
-#+end_src
-
-** Vterm
-
-TODO
-
-** Eshell
+The purely-functional, lazy, ML-inspired programming language. It's the stuff of category-laden dreams.
 
 #+begin_src emacs-lisp
 
-  (defun dnw/prompt-prefix ()
-    (let ((guess (apply
-                  'concat
-                  (-map
-                   (lambda (x)
-                     (if (string= x "dnw")
-                          "~/"
-                       (concat x "/")))
-                   (seq-subseq
-                    ;; extra ""'s are to prevent slicing errors
-                    (cons "" (cons "" (split-string (eshell/pwd) "/")))
-                    -2)))))
-      (if (string= guess "home/~/")
-          "~"
-        (string-remove-suffix "/" guess))))
-
-  (remove-hook 'eshell-output-filter-functions
-               'eshell-postoutput-scroll-to-bottom)
-
-  (defun dnw/prompt ()
-    (concat
-     (propertize
-      (dnw/prompt-prefix)
-      'font-lock-face '(:foreground "#4068A3"))
-     (propertize " ᛋ" 'font-lock-face '(:foreground "#CB77F9"))
-     (propertize " " 'font-lock-face "default")))
-
-  (setq eshell-prompt-regexp "^[^ᛋ\n]* ᛋ ")
-
-  (setq eshell-highlight-prompt nil
-        eshell-prompt-function #'dnw/prompt)
-
-  (setq eshell-banner-message "We will reinvent the wheel. They used triangles. 🗿\n\n")
-
-  ;; (add-to-list eshell-visual-subcommands '("guix" "search"))
-  ;; (add-to-list eshell-visual-subcommands '("guix" "install"))
-  ;; (add-to-list eshell-visual-subcommands '("guix" "remove"))
-
-  (setq eshell-destroy-buffer-when-process-dies t)
-
-  (setq eshell-prefer-lisp-functions t)
-  (setq eshell-prefer-lisp-variables t)
+  (use-package haskell-mode
+    :bind ("C-c C-h" . hoogle)) ;; figure out how to defer loading until .hs is opened?
 
 #+end_src
 
-* Mail
+** Gnuplot
 
-** Notmuch
-
-Not liking the interface so far...poor documentation or I'm just dumb lol; searches default earliest-to-latest for some reason.
-#+begin_src emacs-lisp
-
-  ;; (use-package notmuch
-  ;;   :config
-  ;;   (setq mail-user-agent 'message-user-agent)
-  ;;   (setq user-mail-address "antigravityd@gmail.com"
-  ;;         user-full-name "Duncan Wilkie")
-  ;;   (setq smtpmail-smtp-server "smtp.gmail.com"
-  ;;         message-mail-send-function 'message-smtpmail-send-it)
-  ;;   (setq smtpmail-debug-info t)
-  ;;   (setq message-default-mail-headers "Cc: \nBcc: \n")
-  ;;   (setq message-auto-save-directory "~/.mail/drafts")
-  ;;   (setq message-kill-buffer-on-exit t)
-  ;;   (setq message-directory "~/.mail/sent")
-  ;;   (setq message-signature "-Duncan Wilkie"))
-
-#+end_src
-
-** Mu4e
+Gnuplot is great for producing extremely high-quality vector plots. I like to use the TikZ terminal, which outputs LaTeX drawing code---and so uses all of the stylistic options I have set in my document.
 
 #+begin_src emacs-lisp
 
-  ;; (require 'mu4e)
-
-  ;; (setq mail-user-agent 'mu4e-user-agent)
-  ;; (setq mu4e-get-mail-command "mbsync -a")
-
-  ;; (setq user-full-name  "Duncan Wilkie")
-  ;; (setq mu4e-compose-signature  "-Duncan Wilkie")
-
-  ;; (setq message-kill-buffer-on-exit t)
-
-  ;; (require 'smtpmail)
-
-  ;; (setq message-send-mail-function 'smtpmail-send-it)
-
-  ;; ;;; Call the oauth2ms program to fetch the authentication token
-  ;; (defun fetch-access-token ()
-  ;;   (with-temp-buffer
-  ;;     (call-process "oauth2ms" nil t nil "--encode-xoauth2")
-  ;;     (buffer-string)))
-
-  ;; ;;; Add new authentication method for xoauth2
-  ;; (cl-defmethod smtpmail-try-auth-method
-  ;;   (process (_mech (eql xoauth2)) user password)
-  ;;   (let* ((access-token (fetch-access-token)))
-  ;;     (smtpmail-command-or-throw
-  ;;      process
-  ;;      (concat "AUTH XOAUTH2 " access-token)
-  ;;      235)))
-
-  ;; ;;; Register the method
-  ;; (with-eval-after-load 'smtpmail
-  ;;   (add-to-list 'smtpmail-auth-supported 'xoauth2))
-
-  ;; (setq message-send-mail-function   'smtpmail-send-it
-  ;;       smtpmail-default-smtp-server "smtp.example.com"
-  ;;       smtpmail-smtp-server         "smtp.example.com"
-  ;;       smtpmail-stream-type  'starttls
-  ;;       smtpmail-smtp-service 587)
-
-  ;; (setq mu4e-contexts
-  ;;       `(,(make-mu4e-context
-  ;;         :name "Personal Gmail"
-  ;;         :enter-func (lambda () (mu4e-message "Switching to Personal Gmail..."))
-  ;;         :match-func  (lambda (msg)
-  ;;                       (when msg
-  ;;                         (string-match-p "/gmail-personal" (mu4e-message-field msg :maildir))))
-  ;;         :vars '((user-mail-address . "antigravityd@gmail.com") ;; set up example Gmail config from manual
-  ;;                 (mu4e-drafts-folder . "/gmail-personal/[Gmail].Drafts")
-  ;;                 (mu4e-sent-folder . "/gmail-personal/[Gmail].Sent Mail")
-  ;;                 (mu4e-trash-folder . "/gmail-personal/[Gmail].Trash")
-  ;;                 (mu4e-sent-messages-behavior . delete)
-  ;;                 (assoc 'mu4e-maildir-shortcuts '((:maildir "/gmail-personal/Inbox" :key ?i)
-  ;;                                             (:maildir "/gmail-personal/[Gmail].Sent Mail" :key ?s)
-  ;;                                             (:maildir "/gmail-personal/[Gmail].Trash" :key ?t)
-  ;;                                             (:maildir "/gmail-personal/[Gmail].All Mail" :key ?a)))
-  ;;                 (starttls-use-gnutls . t)
-  ;;                 (assoc smtpmail-starttls-credentials '(("smtp.gmail.com" 587 nil nil)))
-  ;;                 (assoc smtpmail-auth-credentials  '(("smtp.gmail.com" 587 "antigravityd@gmail.com" nil)))
-  ;;                 (smtpmail-smtp-server . "smtp.gmail.com")
-  ;;                 (smtpmail-smtp-service . 587)))
-  ;;       ,(make-mu4e-context
-  ;;         :name "LSU"
-  ;;         :enter-func (lambda () (mu4e-message "Switching to LSU email..."))
-  ;;         :match-func (lambda (msg)
-  ;;                       (when msg
-  ;;                         (string-match-p "/lsu" (mu4e-message-field msg :maildir))))
-  ;;         :vars '((user-mail-address . "dwilk14@lsu.edu")
-  ;;                 (smtpmail-smtp-server . "smtp-mail.outlook.com")
-  ;;                 (smtpmail-stream-type . starttls)
-  ;;                 (smtpmail-smtp-service . 587)))))
-        ;; `(make-mu4e-context
-        ;; 	:name "Professional Gmail"
-        ;; 	:enter-func (lambda () (mu4e-message "Switching to Professional Gmail..."))
-        ;; 	:match-func  (lambda (msg)
-        ;; 		       (when msg
-        ;; 			 (string= (mu4e-message-field msg :maildir) "/gmail-professional")))
-        ;; 	:vars '((user-mail-address . "duncannwilkie@gmail.com")
-        ;; 		(user-full-name . "Duncan Wilkie")
-        ;; 		(mu4e-compose-signature . "-Duncan Wilkie")))
-        ;; `(make-mu4e-context
-        ;;   :name "Lab"
-        ;;   :enter-func (lambda () (mu4e-message "Switching to Lab email..."))
-        ;;   :match-func  (lambda (msg)
-        ;;                  (when msg
-        ;;                    (string= (mu4e-message-field msg :maildir) "/lab")))
-        ;;   :vars '((user-mail-address . "duncan@spartanphysics.com")
-        ;;           (user-full-name . "Duncan Wilkie")
-        ;;           (mu4e-compose-signature . "-Duncan Wilkie")))
+  (use-package gnuplot)
 
 #+end_src
 
-* Gnus
+** Lean
 
-Email & news reader setup. Time to hit the mailing lists!
+The best interface to a based proof verifier/dependently-typed functional programming language.
+
+#+begin_src emacs-lisp
+
+  (use-package lean-mode)
+  (use-package company-lean)
+
+  (with-eval-after-load 'quail (defun quail-completion ())) ;; the quail-completion buffer for the input mode is annoying
+
+#+end_src
+
+** Racket
+
+The language language.
+
+#+begin_src emacs-lisp
+
+  (use-package racket-mode)
+
+#+end_src
+
+** Guile
+
+For configuring GNU programs that have adopted the official configuration language, e.g. guix and GIMP.
+
+#+begin_src emacs-lisp
+
+    (use-package geiser
+      :config (require 'geiser-guile))
+
+#+end_src
+
+* Communication
+
+Things that involve bidirectional, person-to-person information exchange.
+
+** ERC
+
+Emacs' built-in IRC client. Very feature-complete, and integrates with auth-sources to save and automatically produce login credentials. There is also =circe= and =rcirc= (which is also built-in), but =erc= has a very extensive feature set by comparison.
+
+#+begin_src emacs-lisp
+
+  ;; Me
+  (setq
+   erc-nick "FlaminWalrus"
+   user-full-name "Duncan W")
+
+  ;; Open IRC anywhere
+  (global-set-key (kbd "C-c e")
+		  (lambda ()
+		    (interactive)
+		    (erc-tls :server "irc.libera.chat"
+			     :port "6697")))
+
+#+end_src
+
+** Ement
+
+Alphapapa's Matrix client. Very useful, especially as Matrix may be bridged to nonfree or primarily-mobile chat protocols via puppeting.
+
+#+begin_src emacs-lisp
+
+  (use-package ement)
+
+#+end_src
+
+** Mail
+
+I choose to use the built-in =gnus=, as it has the most extensive features for sorting mail, due to its heritage as primarily a newsreader. There is also the built-in native =rmail=, the built-in but requiring external binary =mh-e=, and completely externally =notmuch=, =mu4e=, =wanderlust=, and =mew=, which appear to principally offer performance advantages.
 
 #+begin_src emacs-lisp
 
@@ -1040,48 +1372,15 @@ Email & news reader setup. Time to hit the mailing lists!
 
 #+end_src
 
-* ERC
+* Content Consumption
 
-IRC client configuration & QOL changes.
+Things that involve mostly unidirectional, producer-to-consumer information exchange.
 
-#+begin_src emacs-lisp
+** Elfeed
 
-  (setq
-   erc-nick "FlaminWalrus"
-   erc-user-full-name "Duncan W")
-
-  (global-set-key (kbd "C-c e")
-                  (lambda ()
-                    (interactive)
-                    (erc-tls :server "irc.libera.chat"
-                             :port "6697")))
-
-#+end_src
-
-* Ement
+Emacs' built-in RSS reader. Currently use it for a bunch of research-level things; I believe =gnus= has the ability to replace it, so I might migrate over there eventually.
 
 #+begin_src emacs-lisp
-
-  ;; (package-install 'quelpa-use-package)
-  ;; (require 'quelpa-use-package)
-
-  ;; (use-package plz
-  ;;   :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
-
-  ;; (use-package plz
-  ;;   :quelpa (plz :fetcher github :repo "alphapapa/plz.el"))
-
-  ;; (use-package ement
-  ;;   :quelpa (ement :fetcher github :repo "alphapapa/ement.el"))
-
-#+end_src
-
-* Elfeed
-
-RSS reader configuration.
-
-#+begin_src emacs-lisp
-
 
     (defun dnw/elfeed-show-mode-visual-fill ()
       (setq visual-fill-column-width 130
@@ -1115,71 +1414,19 @@ RSS reader configuration.
       :bind
       ("C-x w" . elfeed ))
 
-
-    ;; doesn't function. It'd be really nice to configure this from this orgfile
-    ;; (use-package elfeed-org
-    ;;   :config
-    ;;   (setq elfeed-show-entry-switch 'display-buffer)
-    ;;   (setq rmh-elfeed-org-files (list "/home/dnw/.emacs.d/feeds.org")))
-
 #+end_src
 
+** EMMS
 
-
-* Parsers
-
-#+begin_src emacs-lisp
-
-  ;;(use-package bison-mode)
-  (add-to-list 'auto-mode-alist '("\\.g4\\'" . c-mode))
-
-#+end_src
-
-* Haskell
-
-#+begin_src emacs-lisp
-
-  (use-package haskell-mode
-    :bind ("C-c C-h" . hoogle)) ;; figure out how to defer loading until .hs is opened?
-
-#+end_src
-
-* TRAMP
-
-#+begin_src emacs-lisp
-
-  ;; TRAMP can't find necessary binaries on Guix machines without this after Emacs 28
-  (add-to-list 'tramp-remote-path "/run/current-system/profile/bin")
-
-#+end_src
-
-* Info
-
-#+begin_src emacs-lisp
-
-  (setq Info-use-header-line nil)
-
-#+end_src
-
-* Markdown
-
-#+begin_src emacs-lisp
-
-  (setq markdown-command "pandoc")
-
-#+end_src
-
-* EMMS
-
-Play audio and video.
+Emacs has built-in support for interacting with music players. Creating playlists through long folders of =youtube-dl='ed .mp3s seems to be an excellent experience.
 
 #+begin_src emacs-lisp
 
   (use-package emms
     :config
     (emms-all)
-    (add-to-list 'emms-player-list 'emms-player-mpd)
-    :bind
+    (add-to-list 'emms-player-list 'emms-player-mpd) ;; Used with the Music Player Daemon.
+    :bind ;; Make Bluetooth earbud controls work with it.
     ("<XF86AudioPlay>" . emms-start)
     ("<XF86AudioPause>" . emms-pause)
     ("<XF86AudioNext>" . emms-next)
@@ -1187,33 +1434,38 @@ Play audio and video.
 
 #+end_src
 
-* HTML
+** Youtube
+
+There morally ought to exist a way to browse Youtube through Emacs, and interact with =youtube-dl= and =mpv= to watch.
+
+**  EWW
+
+Any sufficiently good website should have readable bare HTML. The built-in Emacs Web Wowser has great support for viewing such pages. The LibreX browser, developed by hnhx, is FOSS, federated, and designed to be JS-free and prioritize non-JS sites. Together, they make using the web for its intended purpose, i.e. accessing information, an enjoyable experience. Most of the websites for which this doesn't work ought to be replaced with client programs anyway, not least in the interest of freedom, so broken sites (usually) serve as a marker of bad digital hygene.
 
 #+begin_src emacs-lisp
 
-  (add-hook 'xhtml-mode-hook (lambda () (call-interactively 'shr-render-buffer)))
+  (use-package eww
+    :config
+    (setq browse-url-browser-function 'eww-browse-url)
+    (setq eww-search-prefix "https://librex.devol.it/search.php?q="))
 
 #+end_src
 
-* Gnuplot
-
-#+begin_src emacs-lisp
-
-  (use-package gnuplot)
-#+end_src
+Extremely useful is the function =eww-readable= / =U=, which attempts to strip out cluttered navigation information from poorly-designed sites. It somewhat works most of the time, up to sites as complex as StackOverflow.
 
 * Desktop Environment
 
-** EXWM
+EXWM allows me to spawn X applications as Emacs buffers. This is great, because it allows me to use a single buffer-management scheme for windows also, extends Emacs' wonderful input modes for mathematics and CJK to all applications (fcitx is a nightmare by comparison), and remap Emacs-style keybindings to CUA equivalents.
 
 #+begin_src emacs-lisp
 
-  (require 'exwm-xim)
-  (require 'exwm-randr)
-  (require 'exwm-systemtray)
-
   (defun dnw/exwm-config ()
     "My configuration of EXWM, adapted from the example."
+    ;; Load modules
+    (require 'exwm-xim)
+    (require 'exwm-randr)
+    (require 'exwm-systemtray)
+
     ;; Set the initial workspace number.
     (unless (get 'exwm-workspace-number 'saved-value)
       (setq exwm-workspace-number 4))
@@ -1221,11 +1473,11 @@ Play audio and video.
     (add-hook 'exwm-update-class-hook
               (lambda ()
                 (exwm-workspace-rename-buffer exwm-class-name)))
-    (setq exwm-randr-workspace-output-plist  '(1 "VGA1" 2 "VGA1" 3 "VGA1"))
+    (setq exwm-randr-workspace-output-plist  '(1 "VGA-1" 2 "VGA-1" 3 "VGA-1"))
     (add-hook 'exwm-randr-screen-change-hook
               (lambda ()
                 (start-process-shell-command
-                 "xrandr" nil "xrandr --output VGA1 --left-of LVDS1 --auto")))
+                 "xrandr" nil "xrandr --output VGA-1 --left-of LVDS-1 --auto")))
 
     ;; Global keybindings.
     (unless (get 'exwm-input-global-keys 'saved-value)
@@ -1274,97 +1526,67 @@ Play audio and video.
     (exwm-enable)
     (exwm-xim-enable)
     (exwm-randr-enable)
-    (exwm-systemtray-enable)
     (push ?\C-\\ exwm-input-prefix-keys))
 
   (use-package exwm
     :config (dnw/exwm-config))
 
-#+end_src
-
-** Pass-mode
-
-#+begin_src emacs-lisp
-
-  (use-package password-store
-    :config (pinentry-start))
-
-#+end_src
-
-** EXWM-edit
-
-Edit selected text in org-mode-style source block. It full-screens it at the moment, not sure what that's about.
-
-#+begin_src emacs-lisp
-
+  ;; Edit selected text in org-mode-style source block. It full-screens it at the moment, not sure what that's about.
   (use-package exwm-edit)
 
 #+end_src
 
-*  EWW
+The =.xinitrc= that I use to actually start Emacs is (see [[*Editing Server][Editing Server]]):
 
-Primary web browser
+#+begin_src shell :tangle no
 
-#+begin_src emacs-lisp
+  setxkbmap us -option ctrl:swapcaps
 
-  (use-package eww
-    :config
-    (setq browse-url-browser-function 'eww-browse-url)
-    (setq eww-search-prefix "https://librex.devol.it/search.php?q=")
-    (setq dnw/eww-auto-readable-blacklist '("https://librex.devol.it"))
+  #/home/dnw/.fehbg &
+  #bash /home/dnw/status.sh &
+  pulseaudio --start
 
-    (defun dnw/eww-auto-readable ()
-      (if (seq-some (lambda (bl) (string-prefix-p bl (eww-current-url)))
-                    dnw/eww-auto-readable-blacklist)
-          nil
-        (eww-readable)))
+  # EXWM start
+  # Disable access control for the current user.
+  xhost +SI:localuser:$USER
 
-    (defun dnw/eww-unreadable ()
-      (interactive)
-      (let ((hook eww-after-render-hook))
-        (setq eww-after-render-hook nil)
-        (eww-reload t)
-        (setq eww-after-render-hook hook))))
+  # Make Java applications aware this is a non-reparenting window manager.
+  export _JAVA_AWT_WM_NONREPARENTING=1
 
-    ;; (add-hook 'eww-after-render-hook #'dnw/eww-auto-readable)
-    ;; :hook (eww-after-render-hook . dnw/eww-auto-readable) this, for some reason, doesn't work
-    ;; :bind ("U" . dnw/eww-unreadable)
+  # Set default cursor.
+  xsetroot -cursor_name left_ptr
 
-#+end_src
-* Lean
+  # Set keyboard repeat rate.
+  xset r rate 200 60
 
-#+begin_src emacs-lisp
+  # Uncomment the following block to use the exwm-xim module.
+  export XMODIFIERS=@im=exwm-xim
+  export GTK_IM_MODULE=xim
+  export QT_IM_MODULE=xim
+  export CLUTTER_IM_MODULE=xim
 
-  (use-package lean-mode)
-
-  (use-package company-lean)
+  # required for GTK3 scrolling
+  export GDK_CORE_DEVICE_EVENTS=1
+  # Finally start Emacs
+  # emacs --daemon -f exwm-enable
+  exec dbus-run-session -- emacsclient -c
 
 #+end_src
 
-* Racket
+I then have the following =.zprofile=, so that =startx= gets called automatically upon user login on =tty2=.
 
-#+begin_src emacs-lisp
+#+begin_src shell :tangle no
 
-  (use-package racket-mode)
+  # Honor system-wide environment variables
+  source /etc/profile
 
-#+end_src
-
-* Guile
-#+begin_src emacs-lisp
-
-    (use-package geiser
-      :config (require 'geiser-guile))
+  [[ -t 0 && $(tty) == /dev/tty2 && $- =~ "l" ]]  && source ~/.zshrc && exec startx
 
 #+end_src
 
-* Disable Annoying Quail Buffer
-
-#+begin_src emacs-lisp
-
-  (with-eval-after-load 'quail (defun quail-completion ()))
-
-#+end_src
 * Runtime Performance
+
+Take the time to clean up the absurd amount of garbage accumulated now that Emacs is usable.
 
 #+begin_src emacs-lisp
 
