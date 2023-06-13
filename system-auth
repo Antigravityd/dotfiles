@@ -1,6 +1,6 @@
 #%PAM-1.0
 
-auth       required                    pam_faillock.so      preauth
+auth       requisite                    pam_faillock.so      preauth
 # Optionally use requisite above if you do not want to prompt for the password
 # on locked accounts.
 -auth      [success=2 default=ignore]  pam_systemd_home.so

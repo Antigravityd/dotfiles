@@ -1,0 +1,19 @@
+* Some Emacs-Focused Dotfiles
+
+These are most of my dotfiles for Parabola/Arch on my Librebooted T60, at the current moment. Some highlights:
+
+- 2.3kline, literate, external-link-documented org-mode config for Emacs, with as much philosophy as I could stomach.
+- Automatic =startx= upon login from tty.
+- =dwm=-like, =xrandr=-friendly EXWM config.
+- Libreboot as combined firmware/bootloader, with a bootloader password, full-disk encryption, and a keyfile---secure against physical access, but only one password (the HDD's LUKS key) necessary to boot normally.
+- =pam_usb= and =xsecurelock= (bug discovered) for seamless, multi-factor authentication
+- Airgapped GPG master key, encrypting a =~/.password-store= integrated with Emacs via =password-store.el= and the built-in =auth-sources= library.
+- Pretty-but-minimal =zsh= config.
+
+
+Some anti-highlights:
+
+- Minimal email/bbdb configuration
+- Minimal org-mode/agenda/calendar/diary configuration
+- Some untested config: a few modes, eglot.
+- Missing config: ledger/finance, non-Arch automatic system package installation.
