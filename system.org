@@ -1,0 +1,597 @@
+
+How I set up my computers, and why.
+
+* Principles of Security, Freedom, and Utility
+
+This config makes a lot of choices about certain systems over other systems. This is an attempt to outline the general basis for these choices,
+
+** Three Definitions of "Secure"
+
+What does it mean for something to be secure? There seem to be, in conventional discussion about the subject, three different positions.
+
+*** Liberal Consequential Security
+
+This position is that security is fundamentally about risk of harm. That is, if two pieces of financial software are being compared, the more secure choice is the one with less risk of loss of funds, as evaluated by their user on the basis of all information available to him.
+
+This is an attractive position, not least to those who are ethically consequentiallist, but simple examination quickly throws it into absurdity---it appears its attraction may well be due to confusion with a /distinct/ usage of the word, e.g. "The right of the people to be *secure* in their persons, houses, papers, and effects against unreasonable searches and seizures shall not be violated..."
+
+**** Security is Too Important to Wager on Induction
+
+This position commits one to a particular solution to the problem of induction, or uncertain reasoning---not by any means philosophically settled---before one can even begin to evaluate software security. The most popular position in the current moment is that subjectivist Bayesian probability theory founds this kind of reasoning. For illustration, let's say the consequentialist agrees. This means that, when writing software, security is entirely a function of /all knowledge/ that each one of its /users/ has. So, in particular, the security of the piece of software varies from user-to-user, depends on things such as "this was written by a good, upstanding Christan boy." Most damningly (mirroring Frege's rebuttal of mathematical psychologism), this suggests that the proper methodology for writing secure software is running inverse design algorithms based on A/B statistical testing of the target population's risk estimates of each line of code. As this is basically the opposite of secure design methodology, it would seem that at least subjectivist Bayesian consequential security is untenable.
+
+Of course, this doesn't cover the other possible foundations of uncertain reasoning, but it illustrates the problem of depending on /any/ such foundation in the analysis of security---they're foundations built on soft sand, for the time being, and it seems very unlikely that any possible future resolution (they're all statistical of some character) will result in a perscription for ensuring security consistent in any way with how it's actually practiced.
+
+If there were no other alternative foundations for reasoning, or no other interpretations of security that exploit those foundations, then it'd be the best we could do...unfortunately, there are.
+
+**** The Obscure Simply is not Secure
+
+If there exists a vulnerability in some software, but no one knows about it yet, obfuscatory steps that make it harder discover that vulnerability /do unquestionably/ decrease the risk that someone will find and subsequently exploit it to the loss of its users. Accordingly, this position cannot to anything but endorse security through obscurity, a position so unpopular as to be called fallacy.
+
+*** Strict Ontological Security
+
+These people believe that security is solely a function of the existence or non-existence of exploitable flaws in the entity in question. An attractive way to fix the shortcomings of the consequential approach, it nevertheless is similarly lacking.
+
+**** Who Decides?
+
+Consider the following scenario: a company offers two encryption schemes. The first is a "Free" tier, and accordingly is based on objectively worse data-hiding, say an md5 hash, but is distributed under a BSD license in source form. The second is a "Managed" tier, which requires a subscription---accordingly, the company can't reveal the source code, and in fact doesn't even give out binary, but a pair of locked-down boxes that users are expected to route sensitive network traffic through, which then manages the traffic in negotiation with their server. The company knows that this routing is completely, 100% secure, say even to the point of mathematical correctness proofs of their hardware and software implementations---but doesn't transmit that knowledge to its users, on account of their needing to charge for it.
+
+The question is: shouldn't the user be skeptical of the company's claims? Maybe the company is the US National Security Agency, or a nationalized Chinese conglomerate, where there's reason to doubt that the claims' veracity would be in the company's interest that may outweigh the objective insecurity of the alternative. If the user has no way to /verify/ the lack of exploitable flaws, shouldn't he behave /as if/ those flaws existed?
+
+In turn, isn't this concept of security somewhat irrelevant, if it can have no impact on how users behave? Shouldn't security be the /warrant/ for trust?
+
+*** Epistemic Security
+
+In light of these analyses, it would seem that a statement that something is "secure" is a claim to have specific, objectively-evaluatable knowledge that the behavior of an entity aligns with expectations. "Specific" rules out consequential security, whose ultimate flaw was the admission of knowledge too-general; "knowledge" rules out ontological security, which refuses to admit any consideration of the perciever in the determination.
+
+The nature of this knowledge is subject to the same grading and methodological concerns common to all other knowledge: that deduction ought to be preferred unless uncertainty is absolutely necessary (which usually is a situation arising at the very foundation and the very fringe of any discipline), and that formalization ought to be utilized to the greatest extent that practical concerns can possibly admit.
+
+** Three Definitions of "Free"
+
+The obvious consequence of epistemic security is that things ought be Free---any information about an entity provided in a representation less informative and more confusing that that which its designers chose to represent it in is being obfuscated, and made /deliberately harder/ for its security to be established. But in what sense is that "F" capitalized; what is the precise, legal, licensing definition of "Free" that best enables security?
+
+*** Free As In Beer
+
+This is the naive definiton of "free," completely unrelated to the determination of security, as it concerns only what was sacrificed to obtain the specific entity in question, and nothing about information provided on that entity's behavior except inasmuch as the provison of that information requires more sacrifice on behalf of the producer than otherwise. However, it is certainly the case in many cases, notably software and other cases where the information and the product are essentially inseparable, that charging /any/ price is senseless without also obfuscating information about the entity's behavior. It is such cases analyzed below.
+
+*** Free*
+
+This is the category of entities on which complete information is provided, but with extensive legal stipulations as to exactly what behavior is not permitted, usually eliminating copying, redistributing, modifying, selling, leaking, and other such things. This category of software can be secure, but if it is found to be insecure, its users are completely prevented (in the limit where laws are followed) from /doing/ anything about the change. In the worst case, where relaying the information provided by any means, even to other licensed users, is prohibited, they are prevented from even /distributing/ knowledge of the insecurity!
+
+*** Free As In Speech
+
+This category is inherently more secure, in the epistemic sense, than anything else. It contains those entities which are distributed with all information that their designer or constructor has in regards to its behavior, and on which no information-destructive restrictions are set on copying, modification, resdistribution or resale, testing, or almost anything else. Only this category of thing has any likelihood of being called secure, as it's the only condition under which the process of demonstrating and improving security can occur, and have the result be verifiable by its users.
+
+**** The Problem of Copyleft
+
+One of the blemishes, /prima faciae/, in common realization of free software licenses in particular are viral or copyleft conditions in open source software licenses, which require that all derived works be at least as freely licensed as that on which it's based (see e.g. the GPL). This would seem to be contradictory to the idea of "freedom;" it can be best seen as a practical measure on behalf of the FSF to ensure that their efforts never go towards projects running directly counter to their political objectives. However, for the purposes of security, since its only purpose is to prevent obfuscation of external software, it is materially irrelevant.
+** Utility
+
+By contrast, evaluating how useful something is much less complicated: does it serve its necessary functions better than any alternatives? There are a few general principles that this config attempts to follow, though, employing much of the reasoning above.
+
+- More secure, more useful: things which behave unpredictably can't be guaranteed to serve those purposes by definition.
+- Nonfree things can never be secure, and so are always less useful.
+- More minimal, easier to secure: things which serve more functions with less abstraction are more useful, all else equal, as it's easier to verify that they conform to that abstraction.
+- More mathematically sophisticated abstractions are usually more minimal: mathematics is the study of abstraction, and so has provided some of the most widely applicable abstractions, such as mathematical proofs, categories, and the theory of regular languages and automata. This needs to be balanced against the need for smoothly bootstrapped abstractions (implementing GHC in bare asm and then an OS in that will probably not be the best for total understandability).
+- Experienced users should be unhampered by UI elements that serve to "help" the novice the first time he boots up the program.
+- Extensive, accessible documentation (including documentation-for-documentation) ameliorates the lack of the above.
+- User-extensibility is paramount: no danger of making bad decisions when the user can design their own interface in a couple minutes.
+- More to come, probably.
+
+* A Partial Implementation
+
+The rest of this document details what I think is roughly the optimal implementation of these principles, when restricted to selecting from off-the-shelf software available in the early '20s. Some of the defects of this system I will try to improve, but this system is certainly necessary to bootstrap out those improvements.
+
+
+Instructions synthesized from [[https://wiki.parabola.nu/Installing_Parabola_on_Libreboot_with_full_disk_encryption_(including_/boot)][Installing Parabola on Libreboot with full disk encryption (including /boot) - ParabolaWiki]] [[https://youtube.com/watch?v=1K5jo9gk9LQ][Luke Smith's Walkthrough]]and [[https://libreboot.at/docs/gnulinux/guix.html][Libreboot – Encrypted Guix GNU+Linux]], along with the usual suspects: ArchWiki, Gentoo Wiki, =man= and =info=.
+
+** Hardware Selection
+
+*** Computer
+
+Purchase a Lenovo Thinkpad X60/T60/T61 secondhand immediately.
+
+These are the unicorn of laptops: excellent physical design, diverse port selection, upgradability and configurability second-to-none, and cheap because they're "old." Moreover, they're some of the only laptops to have FOSS /firmware/ support---this software runs with higher-than-root priveleges, in essence, and is almost invariably closed-source and terrible. Libreboot provides a replacement that's blob-free. Further, this replacement also disables the Intel Management Engine---an entirely separate operating system, running with higher-than-firmware priveleges; closed-source and with government leaks hinting at backdoors. Libreboot integrates firmware with bootloader, can be password-protected, and can decrypt encrypted volumes. In addition to being free, it is simply /the best/ firmware I have ever used. And that makes the T60 all the more valuable.
+
+You will need an ath9k- or other-libre-driver-compatible wifi card to replace the one included, most likely. Beyond that, consider upgrading the drive to an SSD, maxing out x86's 2^32 = 4294967296 bytes of RAM, and occupying the PCMCIA card slot with a smart-card reader or a Bluetooth antenna.
+
+*** Peripherals
+
+A mouse is not needed.
+
+The UltraBase for the T60 is an excellent investment, as it enables the press-button-and-walk-away experience for using external monitors and keyboards with the T60 (also highly recommended).
+
+Extreme care should go into selecting a keyboard, as it will be /the/ primary interface to the system, and can be a source of injury very easily. Pay attention to people who hand-build their own "custom ergo" designs; they have thought quite a lot about what works and why. Consider especially the adjectives split, ortholinear, tented, and mechanical.
+
+*** Additional Hardware
+
+You will need three reasonably-sized USB drives. 32Gb will do: one to load the OS onto the T60 and serve as a OTP hardware 2fa, and for other general use; one for a Kali airgapped master key to live on; and another for the revocation certificate for said key. These last two uses are extremely schizoid, top-tier-security type applications, and so do indeed need to be separate drives. Consider how much you trust the hardware, and the risk/consequence ratio of trusting one company or model for all three or a different company for each.
+
+You will also likely want an additional device runing a internet-connected Linux GUI, to read documentation and flash the install media. If you don't have this, it's still possible to do everything using just the T60, but note down a few things on paper while in the T60's graphical environment for later use: the Libreboot mirror URL and the GPG signature of the file you're supposed to download, TODO other stuff.
+
+** Preliminaries
+
+On a separate computer, or with the Windows XP the T60 probably came with, go to the corresponding [[https://www.archlinux32.org/download/][Arch Linux 32]] page and download an i686-only ISO and its associated files from a mirror (or as a torrent, if you're BASED). This ISO will have proprietary drivers etc. on it, but Parabola's ISOs don't seem to work with Libreboot or i686 or something. Compare the PGP signature of this ISO against those listed on the official page, and make sure they match:
+
+TODO: verifying
+
+Flash this ISO verbatim onto the disk drive, either using a program like Rufus or efibootmgr if on Windows, or, if on Linux, via
+
+#+begin_src shell
+
+  $ sudo dd if=/path/to/ISO of=/path/to/USB/block/device bs=4M; sync
+
+#+end_src
+
+Restart and load this USB drive via the proprietary Lenovo BIOS.
+
+** Installing Libreboot
+
+Once in the Arch live environment (do =loadkeys emacs= to get sensible defaults, e.g. control on capslock, =M-p= for previous prompt), use a separate computer to navigate the [[https://libreboot.org/download.html#https][Libreboot – Downloads]] page, and find an =https= mirror you like. Navigate to =stable/20160907= folder, and note the current page URL. The files you'll need are the =util= archive and the file in =rom/grub= corresponding to the T60 (NB: there's a different one for the X60). Download them in the live environment with
+
+#+begin_src shell
+
+  $ wget https://url/to/libreboot_r20160907_util.tar.xz
+  $ wget https://url/to/libreboot_r20160907_grub_t60.tar.xz
+
+#+end_src
+
+Also download the SHA512SUMS etc. and verify the contents of everything downloaded. TODO: verifying
+
+Extract these archives' contents, with
+
+#+begin_src shell
+
+  $ tar -xf libreboot_r20160907_util.tar.xz
+  $ tar -xf libreboot_r20160907_grub_t60.tar.xz
+
+#+end_src
+
+In the =grub_t60= folder, there will be a number of files with keyboard layouts and =vesafb= or =txtmode= in their names. Copy the one corresponding to your preferred layout which has =vesafb= (simply a prettier version of GRUB) to the =util= folder, and chase after it:
+
+#+begin_src shell
+
+  $ cp name/of/layout_vesafb.rom ../libreboot_r20160907_util
+  $ cd ../libreboot_r20160907_utli
+
+#+end_src
+
+Now to the scary stuff. Libreboot should do all the hard work, and everything should be fine, but problems here (and, by extension, before this point) can render the T60 unbootable and requrie an external re-flashing tool to recover. The following flashes the basic configuration to the ROM (this'll be modified later):
+
+#+begin_src shell
+
+  $ ./flash i945lenovo\_firstflash name/of/layout_vesafb.rom
+
+#+end_src
+
+This will give terrifying error messages. If it says "DO NOT REBOOT OR POWEROFF," you've won; type =shutdown now= (not =reboot=, apparently) and turn the system back on after it shuts down.
+
+A GRUB-style menu with a GNU background should pop up for a brief moment. By default, it'll try to boot the main disk drive; use the arrow keys to stop it (if you miss, just power cycle it again). Try typing either =s= (which searches for GRUB configs on external media) or =u= (which searches for ISOLINUX configs on external media); one of these should take you back to the ISO's boot menu. Navigate through this, and go back to the folder we logged off from to continue (preserve sanity with =loadkeys emacs= if you did so before).
+
+Libreboot needs to run a second flash:
+
+#+begin_src shell
+
+  $ ./flash i945lenovo\_secondflash name/of/layout_vesafb.rom
+
+#+end_src
+
+This should run faster and with fewer scary errors. After it finishes successfully, continue installing with the now-spyware-free (or, at least, more-spyware-free) firmware and CPU.
+
+** Installing Arch with Full-Disk Encryption
+
+We'll perform a fairly standard Arch install, before updating Libreboot and migrating to Parabola.
+
+*** Shred the Past
+
+First, we wipe the disk. Figure out which one it is with
+
+#+begin_src shell
+
+  $ lsblk
+
+#+end_src
+
+
+Needless to say, everything below this point destroys the contents of the T60's disk drive (or whatever else you mistakenly target with the commands). Take extra care. The drive you're looking for should be something like =/dev/sdX= (which the USB will also look like---be extra sure it's the disk and not the drive!). Wipe the MBR with zeros first (TODO: not sure why this needs to be done separately):
+
+#+begin_src shell
+
+  $ dd if=/dev/zero of=/dev/sdX bs=446 count=1; sync
+
+#+end_src
+
+Now, use the kernel's pseudorandom number generator (use =/dev/random/= if you value a tiny increase in security over the multiple extra hours it'll probably take) to wipe the contents of the drive:
+
+#+begin_src shell
+
+  $ dd if=/dev/urandom of=/dev/sdX bs=4M; sync
+
+#+end_src
+
+*** Connect to the Network
+
+Try
+
+#+begin_src shell
+
+  $ ping gnu.org
+
+#+end_src
+
+If they respond, you're already connected, probably because you chose to plug in a wired connection. Otherwise, if you're on wired run =systemctl restart dhcpcd=; if wireless, =wifi-menu=. Try pinging again; if it still doesn't work, find other documentation; failing that, hit IRC or the forums.
+
+*** Setting Up Full-Disk Encryption
+
+Ensure the kernel has the module for encryption:
+
+#+begin_src shell
+
+  $ modprobe dm-mod
+
+#+end_src
+
+Set up a single, monolithic partition on the HDD:
+
+#+begin_src shell
+
+  # Select 'o' to create a new DOS partition; choose the defaults for everything.
+  # The result should be a partiton of type '(83) Linux' filling the whole drive.
+  # No need to set it bootable.
+  fdisk /dev/sdX
+
+#+end_src
+
+Read a lot about how cryptography and LUKS work. Or, if you're lazy, run the following command no-questions-asked, which could be one of the completely-insecure and trivial-to-bypass LUKS parameter combinations because I'm evil 😈
+
+#+begin_src shell
+
+  $ cryptsetup -v --cipher serpent-xts-plain64 --key-size 512 --hash whirlpool --use-random --verify-passphrase \
+    luksFormat --type luks1 /dev/sdX1
+
+#+end_src
+
+Choose a good password. My advice is to use
+
+#+begin_src shell
+
+  $ cat /dev/random | tr -cd '[:graph:]' | head -c12
+
+#+end_src
+
+to generate a truly random, 12-character-with-symbols, hyper-secure one. In the end, you'll only have to remember two of these due to the /bomber/ password manager configuration to be set up; writing them down for now is completely fine (as long as you incinerate, or carry on your person at all times, later).
+
+All of the usual partitions will be LVM volumes inside this encrypted one (which enables all kinds of efficiency). Set the basics of this up:
+
+#+begin_src shell
+
+  $ cryptsetup luksOpen /dev/sdX1 lvm       # unlock what we just encrypted
+  $ pvcreate /dev/mapper/lvm                # make it an LVM physical volume
+  $ pvdisplay                               # confirm it worked
+  $ vgcreate matrix /dev/mapper/lvm         # make a volume group on it to contain all our usual partitions
+  $ vgdisplay                               # confirm again
+  $ lvcreate -L 4G matrix -n swapvol        # swap partition
+  $ lvcreate -l +100%FREE matrix -n rootvol # the rest is the root partition
+
+#+end_src
+
+Add any more you want (why tho), and confirm with =lvdisplay=.
+
+Put the new space to work (choose a different root filesystem if you want):
+
+#+begin_src shell
+
+  $ mkswap /dev/mapper/matrix-swapvol     # make swap a swap
+  $ swapon /dev/matrix/swapvol            # make swap do swaping
+  $ mkfs.btrfs /dev/mapper/matrix-rootvol # make root a filesystem
+  $ mount /dev/matrix/rootvol /mnt        # make that filesystem accessible
+
+#+end_src
+
+*** Setting Up the New Filesystem
+
+Create basic directories in the new root filesystem:
+
+#+begin_src shell
+
+  $ mkdir -p /mnt/home
+  $ mkdir -p /mnt/boot
+
+#+end_src
+
+Now, verify the signatures of the packages:
+
+#+begin_src shell
+
+  $ sudo pacman --needed -Syy archlinux-keyring archlinux32-keyring
+
+#+end_src
+
+See the Parabola installation guide for how to deal with errors here.
+
+Now, put any essential packages on the system (feel free to modify the end of this list):
+
+#+begin_src shell
+
+   $ pacstrap -K /mnt base linux linux-firmware lvm2 flashrom man-db man-pages texinfo wpa_supplicant dhcpcd emacs xorg-server
+
+#+end_src
+
+An =fstab= can now be generated, so the filesystem actually works:
+
+#+begin_src shell
+
+  $ genfstab -U /mnt >> /mnt/etc/fstab
+
+#+end_src
+
+Copy the Libreboot files from the install medium onto the filesystem (we'll need the tools to flash an improved Libreboot GRUB config):
+
+#+begin_src shell
+
+  $ cp -r libreboot_r20160907_util /mnt/root/
+
+#+end_src
+
+Now, to =chroot= into the actual system, and finalize things.
+
+*** Configuring the New System
+
+Chroot into the new system, set the time zone, hardware clock, and your locale:
+
+#+begin_src shell
+
+  $ arch-chroot /mnt
+  $ ln -sf /usr/share/zoneinfo/America/Chicago /etc/localtime # modify if not on God's time
+  $ hwclock --systohc
+
+#+end_src
+
+Edit =/etc/locale.gen= to enable any desired locales (=en_US.UTF-8= and =UTF-8= are good choices).
+
+Generate them with
+
+#+begin_src shell
+
+  $ locale-gen
+
+#+end_src
+
+Set =LANG=en_US.UTF-8= in =/etc/locale.conf=, and make Emacs keys in the console persistent by entering =KEYMAP=emacs= in =/etc/vconsole.conf=. Create a hostname in =/etc/hostname= (any file contents will be the hostname; I like using ancient Greek philosophical concepts).
+
+Modify =/etc/mkinitcpio.conf= to contain the following:
+
+#+begin_src shell
+
+  ...
+  MODULES=(i915)
+  ...
+  FILES=(/etc/keyfile)
+  ...
+  HOOKS=(base udev autodetect modconf block keyboard keymap consolefont encrypt lvm2 filesystems fsck shutdown)
+  ...
+
+#+end_src
+
+The keyfile will be set up later as a way to pass the system encryption key to the kernel; try to =touch= it if it causes problems by not existing. There may be room for improvement with the hook, esp. their order, as I simply found one that worked and rolled with it.
+
+Create the initial RAM disk with =mkinitcpio -p linux=.
+
+Set a root password (remember how we generated the LUKS password above? Do that again---don't reuse passwords):
+
+#+begin_src shell
+
+  $ passwd
+
+#+end_src
+
+One needs not install a bootloader; Libreboot's GRUB can do all that for us.
+
+Now, we can simply release everything and reboot:
+
+#+begin_src shell
+
+  $ exit # from chroot
+  $ umount -R /mnt
+  $ swapoff -a
+  $ lvchange -an /dev/matrix/rootvol
+  $ lvchange -an /dev/matrix/swapvol
+  # any others...
+  $ cryptsetup luksClose lvm
+  $ poweroff
+
+#+end_src
+
+*** Getting Into the New System
+
+Remove the USB stick, and power the system back on. Libreboot's GRUB will need some help booting the system, as we haven't configured it yet. In the boot menu, press 'c' to access the GRUB commandline (which has basic =bash=-like tab completion), and boot things manually:
+
+#+begin_src shell
+
+  grub> cryptomount -a
+  grub> set root='lvm/matrix-rootvol'
+  grub> linux /boot/vmlinuz-linux root=/dev/matrix/rootvol cryptdevice=/dev/sda1:root
+  grub> initrd /boot/initramfs-linux.img
+  grub> boot
+
+#+end_src
+
+** A Quick =pacman -Suu your-freedom=
+
+After Arch boots, you should be able to login as root using the password you configured. Upgrade the system with =pacman -Syu=. Disable signature verification temporarily by editing =/etc/pacman.conf=:
+
+#+begin_src shell
+
+  ...
+  SigLevel = Never
+  ...
+
+#+end_src
+
+Install the Parabola keys and mirrors:
+
+#+begin_src shell
+
+  # i686 may need to be altered to x86_64; I can't recall.
+  $ pacman -U https://www.parabola.nu/packages/libre/i686/parabola-keyring/download
+  $ pacman -U https://www.parabola.nu/packages/libre/i686/pacman-mirrorlist/download
+
+#+end_src
+
+Switch to the new mirrors:
+
+#+begin_src shell
+
+  $ cp -vr /etc/pacman.d/mirrorlist.pacnew /etc/pacman.d/mirrorlist
+
+#+end_src
+
+In =/etc/pacman.conf=, enable the new repositories above the existing Arch ones (order critical):
+
+#+begin_src shell
+  ...
+  [nonprism]
+  Include = /etc/pacman.d/mirrorlist
+  [kernels]
+  Include = /etc/pacman.d/mirrorlist
+  [libre]
+  Include = /etc/pacman.d/mirrorlist
+  ...
+#+end_src
+
+Refresh everything:
+
+#+begin_src shell
+
+  $ pacman -Scc
+  $ pacman -Syy
+  $ pacman-key --refresh
+  $ pacman -Suu your-freedom pacman your-privacy
+
+#+end_src
+
+Run =mkinitcpio -p linux-libre= to re-generate the initramfs with the correct kernel. The system should now be fully free; we need only configure Libreboot to boot into the new kernel.
+
+** Configuring Libreboot
+
+*** Creating a Keyfile
+
+We may use a minimal-access file on the encrypted root filesystem, in which the kernel runs after the bootloader unlocks it, to give the kernel an encryption key. However, we first must generate and authorize the keyfile.
+
+#+begin_src shell
+
+  $ dd bs=512 count=4 if=/dev/urandom of=/etc/keyfile iflag=fullblock; sync
+  $ cryptsetup luksAddKey /dev/sdX /etc/keyfile
+  $ chmod 000 /etc/keyfile
+
+#+end_src
+
+This should already be in the =/etc/mkinitcpio.conf= made above, but if it isn't, add it and regenerate the =mkinitcpio=. The following produces a GRUB config for LIbreboot that, among other things, instructs the kernel to use this keyfile to manipulate the filesystem.
+
+*** A New Config
+
+The Libreboot utils folder was copied into the =/root= directory (right?) and we installed the =flashrom= tool with =pacstrap= (right?), so we can change to a directory with the tool we need, and dump the ROM contents, inspecting what we get
+
+#+begin_src shell
+
+  $ cd /root/libreboot_r20160907_util/cbfstool/i686
+  $ flashrom -p internal -r dump.rom
+  $ ./cbfstool dump.rom print
+
+#+end_src
+
+Flashrom may complain about there being multiple chips. I believe I chose the shortest option (appending its name with =-c=), and it worked out fine. If you see =grub.cfg= and =grubtest.cfg=, it's worked. These two files exist to help avoid rendering the system unbootable, when doing changes like we're about to. Extract the test config:
+
+#+begin_src shell
+
+  $ ./cbfstool dump.rom extract -n grubtest.cfg -f grubtest.cfg
+
+#+end_src
+
+Briefly install =grub=, to hash a password for us (remember how we generated the LUKS password above? Do that again---don't reuse passwords), and then leave:
+
+#+begin_src shell
+
+  $ pacman -S grub
+  $ grub-mkpasswd-pbkdf2 # save this output
+  $ pacman -R grub
+
+#+end_src
+
+Setting a password like this is, strictly speaking, optional, but without it anyone with physical access to the machine could re-flash the boot ROM by loading a Linux kernel they control from the GRUB commandline or an external USB, load a progam that exfiltrates all the contents of RAM (including the passwords you type) over the network to him. Physical access to the machine is, indeed, always insecure against this (DMA protocols for PCI, FireWire, and SPI give an attacker full control of the contents of RAM), but at least those require persistent modification to the computer's hardware, which is much more noticable than modifying software one hardly thinks about.
+
+Now, edit the contents of the "Load Operating System" function =grubtest.cfg= as follows, double-checking (perhaps with a reboot) that =(ahci0,msdos1)= is indeed what your encrypted partition is (avoids any possible attack by manipulating the =cryptomount -a= order):
+
+#+begin_src shell
+
+  ...
+  set superusers="root"
+  password_pbkdf2 root <your-hash-here>
+
+  menuentry 'Parabola Linux-Libre (LVM under full-disk LUKS)  [o]' --hotkey='o' --unrestricted {
+      cryptomount (ahci0,msdos1)
+      set root='lvm/matrix-rootvol'
+      linux /boot/vmlinuz-linux-libre root=/dev/matrix/rootvol cryptdevice=/dev/sda1:root rw cryptkey=rootfs:/etc/keyfile iomem=relaxed
+      initrd /boot/initramfs-linux-libre.img
+  }
+  menuentry 'Search ISOLINUX menu (AHCI)  [a]' --hotkey='a' --users ""{
+      search_isolinux ahci
+  }
+  menuentry 'Search ISOLINUX menu (USB)  [u]' --hotkey='u' --users "" {
+      search_isolinux usb
+  }
+  menuentry 'Search ISOLINUX menu (CD/DVD)  [d]' --hotkey='d' --users "" {
+      insmod ata
+      for dev in ata0 ata1 ata2 ata3 ahci1; do
+          try_isolinux_config "(${dev})"
+      done
+  }
+  menuentry 'Load test configuration (grub.cfg) inside of CBFS  [t]' --hotkey='t' --unrestricted {
+      set root='(cbfsdisk)'
+      configfile /grub.cfg
+  }
+  menuentry 'Search for GRUB2 configuration on external media  [s]' --hotkey='s' --users "" {
+      search_grub usb
+  }
+  menuentry 'Poweroff  [p]' --hotkey='p' --unrestricted {
+      halt
+  }
+  menuentry 'Reboot  [r]' --hotkey='r' --unrestricted {
+      reboot
+  }
+  ...
+
+#+end_src
+
+This will require a GRUB password (with user login "root") for doing anything in GRUB other than booting Parabola (which requires a LUKS password, and ultimately a user password) or cycling the power.
+
+*** Flashing and Testing
+
+Save the modifications, and then update the =grubtest.cfg= file in the ROM (note TEST!!!!!!!! system can brick otherwise) with them:
+
+#+begin_src shell
+
+  $ ./cbfstool dump.rom remove -n grubtest.cfg
+  $ ./cbfstool dump.rom add -n grubtest.cfg -f grubtest.cfg -t raw
+
+#+end_src
+
+Now, change to the =libreboot_util= directory and run
+
+#+begin_src shell
+
+  $ ./ flash update dump.rom
+
+#+end_src
+
+Now, you should be able to reboot and try out the new config. Are passwords required where they should be? Have you written down/remembered them correctly? Do the non-password options work? If so, boot into the system and verify that works. If anything breaks, a simple "t" will return to the original config, which worked to get you this far. If everything works, repeat the flashing steps above, copying the contents of =grubtest.cfg= to =grub.cfg=, and modifying the "test configuration" entry to point to =grubtest.cfg= instead of =grub.cfg=. Load and flash it the same way as above, reboot, and verify it works (boot via =grubtest.cfg= or the command line if it doesn't).
+
+After this reboot, you should have a reasonably-secure-against-physical-access, fully-free, Parabola GNU/Linux-libre system!
+
+
+** Configuring the New System
+TODO
+*** Adding Users
+*** PAM USB
+*** Airgapped Master Key
+*** Powertop
+*** Emacs and Userland
