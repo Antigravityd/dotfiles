@@ -82,7 +82,7 @@ By contrast, evaluating how useful something is much less complicated: does it s
 The rest of this document details what I think is roughly the optimal implementation of these principles, when restricted to selecting from off-the-shelf software available in the early '20s. Some of the defects of this system I will try to improve, but this system is certainly necessary to bootstrap out those improvements.
 
 
-Instructions synthesized from [[https://wiki.parabola.nu/Installing_Parabola_on_Libreboot_with_full_disk_encryption_(including_/boot)][Installing Parabola on Libreboot with full disk encryption (including /boot) - ParabolaWiki]] [[https://youtube.com/watch?v=1K5jo9gk9LQ][Luke Smith's Walkthrough]]and [[https://libreboot.at/docs/gnulinux/guix.html][Libreboot – Encrypted Guix GNU+Linux]], along with the usual suspects: ArchWiki, Gentoo Wiki, =man= and =info=.
+Instructions synthesized from [[https://wiki.parabola.nu/Installing_Parabola_on_Libreboot_with_full_disk_encryption_(including_/boot)][Installing Parabola on Libreboot with full disk encryption (including /boot) - ParabolaWiki]] [[https://youtube.com/watch?v=1K5jo9gk9LQ][Luke Smith's Walkthrough]], [[https://wiki.debian.org/GnuPG/AirgappedMasterKey][GnuPG/AirgappedMasterKey - Debian Wiki]]and [[https://libreboot.at/docs/gnulinux/guix.html][Libreboot – Encrypted Guix GNU+Linux]], along with the usual suspects: ArchWiki, Gentoo Wiki, =man= and =info=.
 
 ** Hardware Selection
 
@@ -587,11 +587,268 @@ Now, you should be able to reboot and try out the new config. Are passwords requ
 
 After this reboot, you should have a reasonably-secure-against-physical-access, fully-free, Parabola GNU/Linux-libre system!
 
-
 ** Configuring the New System
-TODO
+
 *** Adding Users
+
+Doing everything as root is hopelessly dangerous. Add a user:
+
+#+begin_src shell
+
+  $ useradd -m -G wheel audio video netdev <other groups> -s <login_shell> <username>
+
+#+end_src
+
+Create a password (using the same guidelines as above---don't reuse passwords!):
+
+#+begin_src shell
+
+  $ passwd <username>
+
+#+end_src
+
+The "wheel" group are all those users permitted to =sudo= to root; we need to set this up by editing =/etc/sudoers= using =visudo= (!!! RISK OF BRICK OTHERWISE): add the line
+
+#+begin_src shell
+
+  %wheel    ALL=(ALL:ALL) ALL
+
+#+end_src
+
+Check =sudo= works with =sudo echo BRUH=
+
 *** PAM USB
-*** Airgapped Master Key
+
+Note: I've since stopped using =pam_usb=, due to an update's breaking of the agent resulting in the system becoming unbootable...I configure a keybind to lock all sessions instead.
+
+For 2FA reasons, I like the AUR package =pam_usb=, which provides a daemon and a PAM module for conditioning authentication of various kinds on a USB being plugged in. This means that anyone looking to authenticate to any account on my computer requires: 1) the knowledge I keep in my head/secured with =pass= and an airgapped master GPG key, and 2) a device I keep on my person at all times. If the device is lost, the bootloader password (and also the LUKS password) can be used to load Linux manually with =init=/bin/sh=, and then the PAM files modified---if these passwords are compromised, it likely means the adversary has my GPG decryption key, which means I have bigger problems; top-of-mind should be issuing the revocation certificate, generating a new airgapped master, transerring all my =pass= files over to the new key, and changing as many of those passwords and coin wallets as I can that the adversary hasn't done before me. At the very least, it provides an excellent way to trigger locking of the desktop and any open tty sessions when I'm not at the keyboard. Install it (manually, please; AUR package managers are a terrible idea). Ensure you're using the =mcdope= fork; at the time of writing, it's the one to which the =pam_usb= package points, but that could change.
+
+The USB used to install Arch is no longer needed, so we'll configure a partition on it to store the one-time pads. The rest can be LUKS-encrypted and used for general file transfer, or to test out other distros (I have one partition for each). Wipe it first if you want, using the same commands above used to wipe the HDD.
+
+#+begin_src shell
+
+  $ lsblk # get USB block device --- /dev/sdY
+  $ dd if=/dev/urandom of=/dev/sdY bs=4M; sync # optional
+  $ fdisk /dev/sdY # create at least one partition---1G is working great for me so far.
+  $ mkfs.ext4 /dev/sdY1 # doesn't work with additional encryption; probably is just more inconvenient
+
+#+end_src
+
+The =pam_usb= tools should now be able to pick up the USB.
+
+#+begin_src shell
+
+  $ pamsub-conf --add-device <device_name> # Select /dev/sdY1, and say "yes" to save the config.
+  $ pamusb-conf --add-user <username>      # Say "yes" to save the config.
+  $ pamusb-check <username>                # Makes sure it is set up correctly.
+
+#+end_src
+
+Now, to actually /require/ =pamusb-check= to log in (note: as we haven't configured =pamusb= for the root user, this disables root login on tty, but not =su=), edit =/etc/pam.d./system-auth= to contain
+
+#+begin_src shell
+
+  #%PAM-1.0
+
+  auth       required                    pam_faillock.so      preauth
+  # Optionally use requisite above if you do not want to prompt for the password
+  # on locked accounts.
+  -auth      [success=2 default=ignore]  pam_systemd_home.so
+  auth       required        	    pam_usb.so  # add this line; only change
+  auth       [success=1 default=bad]     pam_unix.so          try_first_pass nullok
+  auth       [default=die]               pam_faillock.so      authfail
+  auth       optional                    pam_permit.so
+  auth       required                    pam_env.so
+  auth       required                    pam_faillock.so      authsucc
+  # If you drop the above call to pam_faillock.so the lock will be done also
+  # on non-consecutive authentication failures.
+
+  -account   [success=1 default=ignore]  pam_systemd_home.so
+  account    required                    pam_unix.so
+  account    optional                    pam_permit.so
+  account    required                    pam_time.so
+
+  -password  [success=1 default=ignore]  pam_systemd_home.so
+  password   required                    pam_unix.so          try_first_pass nullok shadow sha512
+  password   optional                    pam_permit.so
+
+  -session   optional                    pam_systemd_home.so
+  session    required                    pam_limits.so
+  session    required                    pam_unix.so
+  session    optional                    pam_permit.so
+
+#+end_src
+
+I also like changing the =required= in the first line to =requisite=, as noted in the comments. In the line added for =pam_usb=, you can change =required= to =sufficent= to make the USB a substitute for a password, but I do not recommend it. NB: you should read the =pam.d= manpages to understand the signifigance of these changes, and exactly how this file works. The order of things is extremely important.
+
+Now, =pam_usb= will kick in on any =tty= login, on =sudo= authentication, and a few other places that use =system-auth=. We can configure and enable =pamusb-agent= to perform actions on connection and disconnection. I like telling it to use =xsecurelock= to lock the X display, and lock all TTY sessions with =vlock=:
+
+#+begin_src nxml
+
+  <!-- User settings -->
+  <users>
+
+    <!-- ... -->
+
+    <user id="dnw">
+      <device>secrets-userauth</device>
+      <agent event="lock">
+        <env>XSECURELOCK_AUTHPROTO=authproto_pam</env>
+        <env>XSECURELOCK_PAM_SERVICE=system-auth</env>
+        <env>XSECURELOCK_PASSWORD_PROMPT=time_hex</env>
+        <env>DISPLAY=:0.0</env> <!-- Possibly flaky. -->
+        <env>XAUTHORITY=/home/dnw/.Xauthority</env>
+        <cmd>xsecurelock</cmd>
+        <cmd>vlock -a</cmd>
+      </agent>
+  </user></users>
+
+  <!-- ... -->
+
+#+end_src
+
+*** An Airgapped Master Key
+
+An OpenPGP key is usually a frighteningly powerful thing. I personally use mine to encrypt /all of my other secrets/ (including important financial assets and API keys) with =pass=, to prove I'm me to the world at-large, and communicate securely with people I know over unsecure networks. As such, it pays to be a little schizo. One of the problems with standard key arangements is that if an adversary compromises the main key, he can use that main key generate a revocation certificate, new subkeys signed by the previous key, issue that revocation certificate to nullify all prior arrangements, and carry on impersonating you with new keys, over which you have no control.
+
+An airgapped master key setup minimizes the risk of this happening by separating the powers of day-to-day encryption and decription from those of signing, revocation certificate creation, and subkey generation. If an adversary compromizes the former (much more likely, as they're used over a wider range of hardware and in much more bloated software environments), he can only encrypt and decrypt things with them; only you have the ability to generate new signed subkeys, issue a revocation certificate, and update your identity to something outside the adversary's control. The "master key" with such powers is stored exclusively on a leave-no-trace LiveUSB distro like Tails or Kali, and is only ever booted on computers physically disconnected from the Internet (since you now have a T60, via a Kali 32-bit LiveUSB with encrypted persistence, with the T60's physical WiFi kill switch always off, i.e. no green showing).
+
+Ok, let's set it all up. Download and verify the [[https://cdimage.kali.org/kali-2023.2/kali-linux-2023.2-live-i386.iso][Kali 32-bit LiveUSB ISO]]. Plug in a (different!) USB, figure out which it is with =lsblk= (say, =/dev/sdZ=), load the image on the drive, add and encrypt an additional partition, and create a labeled filesystem on it:
+
+#+begin_src shell
+
+  $ dd if=/path/to/kali.iso of=/dev/sdZ bs=4M conv=fsync status=progress; sync
+  $ fdisk /dev/sdZ # Create a new primary partition filling the rest of the drive, and write.
+  $ cryptsetup luksFormat /dev/sdZ3 # generate a good, new password!
+  $ cryptsetup luksOpen /dev/sdZ3 airgap
+  $ mkfs.ext4 -L persistence /dev/mapper/airgap
+  $ e2label /dev/mapper/airgap persistence
+
+#+end_src
+
+Now, do some Kali nonsense to make the contents of this partition persistent across boots, and we're done here:
+
+#+begin_src shell
+
+  $ mount /dev/mapper/airgap /mnt
+  $ echo "/ union" | sudo tee /mnt/persistence.conf
+  $ umount /dev/mapper/airgap
+  $ cryptsetup luksClose /dev/mapper/airgap
+
+#+end_src
+
+Next, =shutdown now=, hit the WiFi kill switch (and make sure any cables and Bluetooth devices are unplugged too, for good measure), press =s= at the Libreboot screen, enter your Libreboot password, and enter Kali. Use your persistence password to unlock the LUKS partition. I've had the "Encrypted persistence" GRUB option hang on me before; in that case, just load the normal "Persistence USB" option. It's not that hard to enter a disk password in Thunar after boot, the downside being you have to copy things into and out of it manually.
+
+Once at the Kali desktop, fiddle around with the awful GUI to open a terminal. Ignore the obnoxious prompt; the pain will pass. Create a new =gpg= key:
+
+#+begin_src shell
+
+  $ gpg --full-gen-key
+
+#+end_src
+
+Select options 4, for a sign-only RSA keypair, a size of 4096, and an expiry from a few months to a couple years.  Leave the comment blank; it can cause keysigning problems. Generate a good, distinct passphrase, as always---this (and the Kali LiveUSB LUKS psk) is the critical one; the rest of the passwords can be securely remembered using it. Accordingly, you might want much more entropy; on the other hand, brute-force is very rarely how passwords get leaked, and you will be entering it pretty regularly.
+
+Edit the key, creating subkeys:
+
+#+begin_src shell
+
+  $ gpg --expert --edit-key <KEY_ID>
+  gpg> addkey # option 4
+  gpg> addkey # option 6
+  gpg> addkey # option 8 (optional, to make an SSH-compatible key)
+  gpg> save
+
+#+end_src
+
+These are the main (sub)keys used for day-to-day encryption, in conjunction with the passphrase of the key as a whole.
+
+Insert a third and final USB key, which will hold a revocation certificate for the key. Keep it, preferrably, separate from everything else in a secure location---as it's a last-resort type thing, possibly used in the case of a forgotten passphrase, it will be kept in unencrypted =ext4=.
+
+#+begin_src shell
+
+  $ lsblk          # Note the revoation cert USB, /dev/sdW.
+  $ fdisk /dev/sdW # Make one partition, filling the drive.
+  $ mkfs.ext4 /dev/sdW1
+  $ mount /dev/sdW1 /mnt
+  $ gpg --gen-revoke <KEY_ID> > /mnt
+
+#+end_src
+
+Eject this, put it in the bunker vault, and never plug it into a computer again unless you are intending to revoke this master key.
+
+Next, plug in the USB used for the Arch32 ISO. We'll use this to transfer the subkeys back into Parabola. You might need to format and mount it, as above; consider encrypting it too just to be safe (it wouldn't be too bad to use your user account password, temporarily---they'll be residing in the corresponding home directory long-term, anyway).
+
+#+begin_src shell
+
+  $ gpg --export <KEY_ID> > /mnt/public.gpg
+  $ gpgkey2ssh <SUBKEY_ID> > /mnt/ssh.pub # only if you used option 8 above---use the ID of the subkey created there!
+  $ gpg --export-secret-subkeys <KEY_ID> > /mnt/secret.gpg  # Exports everything /except/ the master.
+
+#+end_src
+
+Make the entire =.gnupg= directory is saved to the persistence volume! Then, eject everything and reboot into Parabola. Don't plug the Kali USB into anything unless you intend to sign something, and make sure what you do plug it into is physically airgapped for the entire session. Use USBs to transfer anything in, like we have here.
+
+In Parabola, mount the drive the keys were exported to, and import them to your user's (not root's) GPG configuration with
+
+#+begin_src shell
+
+  $ gpg --import < /mnt/public.gpg
+  $ gpg --import < /mnt/secret.gpg
+
+#+end_src
+
+Also copy any SSH auth key to a corresponding location. The last thing we need to do is put ultimate trust in the imported key:
+
+#+begin_src shell
+
+  $ gpg --edit-key <KEY_ID>
+  gpg> trust # set to ultimate, the highest level.
+
+#+end_src
+
+Put the Tails USB in a safe place. It's probably OK for that to be the same place as the revocation certificate, as losing either one would be equally bad, and keeping hold of just one doesn't do you much good. Consider writing down the passphrases to the Kali encrypted persistence and the key as well, and storing them alongside (or separate)---this is where careful consideration of your threat model is relevant.
+
 *** Powertop
+
+There is an occasional whine in the fan on many systems. To defeat this:
+
+Place the following script somewhere on the system, make it read/execute-only, and =chown= it to root so no user processses can modify it to escalate privilege. This prevents =powertop --auto-tune=, which will get rid of the whine, from turning off externally connected USB mice and keyboards after annoyingly short inactivity periods.
+
+#+begin_src shell
+  #!/bin/bash
+
+  powertop --auto-tune
+  HIDDEVICES=$(ls /sys/bus/usb/drivers/usbhid | grep -oE '^[0-9]+-[0-9\.]+' | sort -u)
+  for i in $HIDDEVICES; do
+      echo -n "Enabling " | cat - /sys/bus/usb/devices/$i/product
+      echo 'on' > /sys/bus/usb/devices/$i/power/control
+  done
+
+#+end_src
+
+
+Edit =/etc/systemd/system/powertop.service= with the following, to enable powertop:
+
+#+begin_src systemd
+
+  [Unit]
+  Description=Powertop tunings
+
+  [Service]
+  Type=oneshot
+  RemainAfterExit=no
+  ExecStart=<path-to-script-above>
+  Environment="TERM=xterm"
+
+  [Install]
+  WantedBy=multi-user.target
+
+
+#+end_src
+
 *** Emacs and Userland
+
+See =config.org= in this repository for my Emacs configuration. It performs most userland functions for me. I do, however, have a =.zshrc= and =.xinitrc= that complement that; they're in this repo as well. Consider especially installing and using =pass=, the UNIX password manager, with your newly-generated airgapped master key. All your passphrases, or any other file-based secrets, will reside simply in =gpg=-encrypted files under =~/.password-store=, and the executable decrypts them simply and quickly through quite good =gpg= integration. This directory can be simply synchronized between machines using standard filesharing tools, alongside =gpg= keys, for simple and secure password management. There are also Android apps that integrate with this; install them from =f-droid=. Longer-term, consider not using a smartphone.
+
+Try especially to avoid bad websites on the internet. By "bad," I mean ones that don't work without executing unnamed, unlicensed JS scripts on your computer. If you absolutely must visit some such, use a browser like Icecat, Iceweasel, or Librewolf. But try to stick to ones browsable with bare HTML.
