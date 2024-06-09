@@ -2,16 +2,21 @@
 #+PROPERTY: header-args :tangle ./init.el
 Top-level TODOs:
 - Org-agenda and calendar/diary
-- Better org mode in general --- org-insert-link-global
+- Better org mode in general
 - Clean up prose on "Why Emacs"
-- BBDB
-- Mail
 - Debug/PR Eshell visual commands over TRAMP
 - Learn how to use compiling and debugging
 - Generalize system package installations to non-Arch package managers
 - Test eglot, consult-eglot, etc.
 - More extensive display-buffer-alist integration with edwina.
+  - Make =s-C= kill buffer.
+  - Investigate what function call causes duplication on the stack (=g= in a =*compilation*=  buffer, ).
+  - Define new =display-buffer-same-window-if-active=, which does =display-buffer-below-selected= unless a buffer matching the regex is active, in which case call =display-buffer-same-window=. Use it for =Help=, =helpful= buffers.
 - Fix bank stuff and get a ledger setup working.
+- SageMATH integration
+- FPGA/EDA/CAD integrations
+- Eshell aliases in the meantime
+- Julia integration
 
 * Why Emacs?
 
@@ -127,7 +132,8 @@ The default Emacs system, from 24 to 28, has only the [[elisp:(helpful-function 
   ;; Get the good stuff from MELPA.
   (require 'package)
   (setq package-archives '(("melpa" . "https://melpa.org/packages/")
-                           ("elpa" . "https://elpa.gnu.org/packages/")))
+                           ("elpa" . "https://elpa.gnu.org/packages/")
+                           ("nongnu" . "https://elpa.nongnu.org/nongnu/")))
 
   ;; Sync the repos.
   (package-initialize)
@@ -145,6 +151,8 @@ The default Emacs system, from 24 to 28, has only the [[elisp:(helpful-function 
 
   ;; Allows us to make sure external binaries are available to support a particular package.
   (use-package use-package-ensure-system-package)
+
+  ;; Manually-downloaded package directories reside in ./manual, and must be loaded and required by hand (I think).
 
 #+end_src
 
@@ -176,6 +184,7 @@ The highest level of information management and display.
 ** Notifications
 
 [[elisp:(describe-package 'ednc)][Ednc]] implements a decent UI for [[elisp:(describe-package 'notifications)][notifications]], an Elisp implementation of the [[https://freedesktop.org][freedesktop.org]] desktop notification spec. Perfect for EXWM.
+The bell is annoying and should be turned off.
 
 #+begin_src emacs-lisp
 
@@ -194,6 +203,8 @@ The highest level of information management and display.
     :config
     (ednc-mode)
     (nconc global-mode-string '((:eval (dnw/stack-notifications)))))
+
+  (setq ring-bell-function 'ignore)
 
 #+end_src
 
@@ -217,11 +228,11 @@ The highest level of information management and display.
     (add-hook 'exwm-update-class-hook
               (lambda ()
                 (exwm-workspace-rename-buffer exwm-class-name)))
-    (setq exwm-randr-workspace-output-plist  '(1 "VGA-1" 2 "VGA-1" 3 "VGA-1"))
+    (setq exwm-randr-workspace-output-plist  '(1 "VGA1" 2 "VGA1" 3 "VGA1"))
     (add-hook 'exwm-randr-screen-change-hook
               (lambda ()
                 (start-process-shell-command
-                 "xrandr" nil "xrandr --output VGA-1 --left-of LVDS-1 --auto")))
+                 "xrandr" nil "xrandr --output VGA1 --left-of LVDS1 --auto")))
 
     ;; Global keybindings.
     (unless (get 'exwm-input-global-keys 'saved-value)
@@ -367,7 +378,7 @@ Something like GNU Unifont is the default; I don't think I have a good eye for f
   ;; Set fallback fonts for Unicode characters and variable-pitch text.
   (defun dnw/unicode-fonts ()
     (setf use-default-font-for-symbols nil)
-    (set-face-font 'variable-pitch (font-spec :name "Liberation Sans"))
+    (set-face-font 'variable-pitch (font-spec :name "IBM Plex Sans"))
     (set-face-font 'fixed-pitch (font-spec :name "Iosevka"))
     (set-fontset-font t 'unicode "Noto Emoji" nil 'append)
     (set-fontset-font t 'emoji "Noto Color Emoji"))
@@ -395,7 +406,7 @@ Something like GNU Unifont is the default; I don't think I have a good eye for f
 
 ** Replace W/ Good Ones
 
-The desktop environment clutter may now be replaced with tasteful, contentual, context-dependent navigation information. The [[elisp:(describe-package 'on-screen)][on-screen]] package provides nice little margin indicators for the previously-visible buffer section after scrolls.
+The desktop environment clutter may now be replaced with tasteful, contentual, context-dependent navigation information. The [[elisp:(describe-package 'on-screen)][on-screen]] package provides nice little margin indicators for the previously-visible buffer section after scrolls. Display-time-mode is convenient with EXWM.
 
 #+begin_src emacs-lisp
 
@@ -413,12 +424,16 @@ The desktop environment clutter may now be replaced with tasteful, contentual, c
                   Info-mode-hook
                   ement-room-mode-hook
                   elfeed-show-mode-hook
+                  doc-view-mode-hook
                   pdf-mode-hook))
     (add-hook mode (lambda () (display-line-numbers-mode 0))))
 
   ;; Enable on-screen globally.
   (use-package on-screen
     :config (global-on-screen-mode t))
+
+  ;; Modeline clock and CPU load level.
+  (display-time)
 
 #+end_src
 
@@ -452,10 +467,10 @@ The [[elisp:(describe-package 'dashboard)][dashboard]] package from Spacemacs, b
     :config
     (dashboard-setup-startup-hook)
     (setq initial-buffer-choice (lambda () (get-buffer-create "*dashboard*")))
-    (setq dashboard-banner-logo-title "Pauca Sed Matura.")
+    (setq dashboard-banner-logo-title "And with eyes like mountains we're drawn to the brow")
     (setq dashboard-center-content t)
     (setq dashboard-image-banner-max-width 600)
-    (setq dashboard-startup-banner "~/Emacs-Config/crystals8.png")
+    (setq dashboard-startup-banner "~/.emacs.d/crystals8.png")
     (setq dashboard-display-icons-p t)
     (setq dashboard-icon-type 'nerd-icons))
 
@@ -561,9 +576,9 @@ Hiding among some of the documentation above are [[info:emacs#Rectangles][Rectan
 
 ** Undo
 
-One of Emacs' best features is its lossless undo. Undo undoes itself---so, at least within the confines of the undo limit, the buffer never enters an unrecoverable state. Things further in the past are always just more undos away. However, this isn't very semantic. Often, it's hard to remember how many undos have been done, or what the state of the buffer was before three different bad ideas hit in some weird order. Additionally, there's lots of spamming/numeric-argumenting =C-/= through the same or similar states over and over again. The [[elisp:(describe-package 'undo-tree)][undo-tree]] package substantially improves this, realizing the edit history exactly as users think of it: a tree of states.
+One of Emacs' best features is its lossless undo. Undo undoes itself---so, at least within the confines of the undo limit, the buffer never enters an unrecoverable state. Things further in the past are always just more undos away. However, this isn't very semantic. Often, it's hard to remember how many undos have been done, or what the state of the buffer was before three different bad ideas hit in some weird order. Additionally, there's lots of spamming/numeric-argumenting =C-/= through the same or similar states over and over again. The [[elisp:(describe-package 'undo-tree)][undo-tree]] package substantially improves this, realizing the edit history exactly as users think of it: a tree of states. However, an unfortunate bug is the fact it seems to interact poorly with =no-littering=.
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 
   (use-package undo-tree
     :config (global-undo-tree-mode)
@@ -658,7 +673,7 @@ While looking at a place you want to jump to, press =C-'= , enter two characters
 
 ** Whitespace Behavior
 
-Save space, and make things look nice (on everyone's machine). The [[elisp:(describe-package 'ws-butler)][ws-butler]] package will trim trailing whitespace on saves, which is essential for the smooth operation of navigation like =C-e=.
+Save space, and make things look nice (on everyone's machine). The [[elisp:(describe-package 'ws-butler)][ws-butler]] package will trim trailing whitespace on saves, which is essential for the smooth operation of navigation like =C-e=---especially useful when rectanguar editing gets messy.
 
 #+begin_src emacs-lisp
 
@@ -722,9 +737,9 @@ See the results with =C-c C-p C-p= after activating =texfrag-mode=: $e^{i\pi} + 
 
 ** Readable Numbers
 
-Puts graphical-only underscores between triple-digit groups of large numbers, e.g. 10000. Interacts a little oddly with long decimals, e.g. 0.0031232.
+Puts graphical-only underscores between triple-digit groups of large numbers, e.g. 10000. Interacts a little oddly with long decimals, e.g. 0.0031232. I've stopped using it.
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 
   (use-package readable-numbers
     :hook ((text-mode . readable-numbers-mode)
@@ -734,23 +749,26 @@ Puts graphical-only underscores between triple-digit groups of large numbers, e.
 
 ** Outlining
 
-While it's hard to see a use for it, Emacs provides [[info:emacs#Outline Mode][Outline Mode]] (and a glow-up [[elisp:(describe-package 'allout)][allout]])  for essentially emulating org-mode in arbitrary text-mode buffers.
+While it's hard to see a use for it, Emacs provides [[info:emacs#Outline Mode][Outline Mode]] (and a glow-up [[elisp:(describe-package 'allout)][allout]])  for essentially emulating org-mode in arbitrary text-mode buffers. Org actually developed as extensions to outline-mode, believe it or not.
 
 ** Translation
 
-[[elisp:(describe-package 'go-translate)][Go-translate]] can de-obfuscate non-English human languages.
+[[elisp:(describe-package 'go-translate)][Go-translate]] can de-obfuscate non-English human languages. =C-n= and =C-p= cycle through the languages in =gts-translate-list=.
+
+Test it (highlight, and =M-x gts-do-translate=): /sic semper tyrannis/.
 
 #+begin_src emacs-lisp
 
-  (use-package go-translate
-    :commands gts-do-translate
-    :config
-    (setq gts-translate-list '(("en" "zh"))) ;; Add more languages here.
-    (setq gts-default-translator
-          (gts-translator
-           :picker (gts-prompt-picker)
-           :engines (list (gts-google-engine) (gts-google-rpc-engine)) ;; There are other engines available.
-           :render (gts-buffer-render))))
+    (use-package go-translate
+      :commands gts-do-translate
+      :config
+      (setq gts-translate-list '(("en" "zh")
+                                 ("en" "la")))
+      (setq gts-default-translator
+            (gts-translator
+             :picker (gts-prompt-picker)
+             :engines (list (gts-google-engine) (gts-google-rpc-engine)) ;; There are other engines available.
+             :render (gts-buffer-render))))
 
 #+end_src
 
@@ -762,6 +780,7 @@ While it's hard to see a use for it, Emacs provides [[info:emacs#Outline Mode][O
 
   ;; TODO: demonstration purposes.
   (use-package hl-todo
+    :hook (prog-mode . hl-todo-mode)
     :config (global-hl-todo-mode)
     :bind (("C-c t p" . hl-todo-previous)
            ("C-c t n" . hl-todo-next)
@@ -828,6 +847,16 @@ The starting place of it all only modifies the minibuffer UI, by presenting a [[
     :config
     (add-to-list 'corfu-margin-formatters #'kind-icon-margin-formatter))
 
+  ;; Workaround for weird interaction between svg-lib and ement:
+  (defun first-graphical-frame-hook-function ()
+    (remove-hook 'focus-in-hook #'first-graphical-frame-hook-function)
+    (provide 'my-gui))
+
+  (add-hook 'focus-in-hook #'first-graphical-frame-hook-function)
+  (with-eval-after-load 'my-gui
+    (setq svg-lib-style-default (svg-lib-style-compute-default)))
+
+
 #+end_src
 
 ** Orderless
@@ -846,6 +875,8 @@ The starting place of it all only modifies the minibuffer UI, by presenting a [[
 
 The prompt (e.g. what you type into =M-x=) is divided into space-separated components. Each component is interpreted as either a regexp or a literal match. Any candidate that matches the all of the components in any order, possibly with some intervening characters, is preserved.
 
+TODO: figure out a way to fix the can't-rename-file-properly bug
+
 ** Consult
 
 A lot of the default navigation commands are pretty clumsy. [[elisp:(describe-package 'consult)][Consult]] provides a lot of alternative UIs to commands, such as search and history that shows the context around the match.
@@ -860,8 +891,7 @@ A lot of the default navigation commands are pretty clumsy. [[elisp:(describe-pa
            ("C-x b" . consult-buffer)
            ("C-x r b" . consult-bookmark)
            ("C-x r i" . consult-register)
-           ("C-+" . consult-mark)
-           ("C-x C-@" . consult-pop-global-mark))
+           ("C-+" . consult-mark))
     :custom (completion-in-region-function #'consult-completion-in-region))
 
   (use-package consult-eglot
@@ -879,13 +909,14 @@ A lot of the default navigation commands are pretty clumsy. [[elisp:(describe-pa
   (use-package marginalia
     :custom
     (marginalia-annotators '(marginalia-annotators-heavy marginalia-annotators-light nil))
+    :init
     (marginalia-mode))
 
 #+end_src
 
 ** Embark
 
-[[elisp:(describe-pacakge 'embark)][Embark]]is kind of like right-click, but for the keyboard, and better than rebinding the mouse key (which you can do!). =embark-act= pops up a completion prompt based on whatever content is under or near the point. [[elisp:(describe-package 'embark-consult)][Embark-consult]] provides an Embark-like ehancement for the UI.
+[[elisp:(describe-pacakge 'embark)][Embark]]is kind of like right-click, but for the keyboard, and better than rebinding the mouse key (which you can do!). =embark-act= pops up a completion prompt based on whatever content is under or near the point. [[elisp:(describe-package 'embark-consult)][Embark-consult]] provides a Consult-like ehancement for the UI.
 
 #+begin_src emacs-lisp
 
@@ -1071,13 +1102,13 @@ There are three choices: =lsp-mode=, =eglot=, and =lsp-bridge=. [[elisp:(describ
 
 #+begin_src emacs-lisp
 
-  (use-package eglot
-    :commands eglot
-    :hook ((python-mode . eglot-ensure)
-           (haskell-mode . eglot-ensure)
-           (c-mode . eglot-ensure)
-           (c++-mode . eglot-ensure)))
-    ;; :ensure-system-package (python-lsp-server haskell-lsp ccls)
+    (use-package eglot
+      :commands eglot
+      :hook ((python-mode . eglot-ensure)
+             (haskell-mode . eglot-ensure)
+             ;; (c-mode . eglot-ensure) (c++-mode . eglot-ensure)
+             ))
+      ;; :ensure-system-package (python-lsp-server haskell-lsp ccls)
 
 #+end_src
 
@@ -1109,7 +1140,7 @@ Emacs editing facilities technically manipulate only buffers. It's via [[info:em
 
 #+end_src
 
-Interesting features people often gloss over: [[info:emacs#Filesets][Filesets]], =C-x i=, and =C-x C-r=.
+Interesting features people often gloss over: [[info:emacs#Filesets][Filesets]], =C-x i=, [[info:emacs#File Variables][File and Directory Variables]], and =C-x C-r=.
 
 ** Dired
 
@@ -1148,7 +1179,7 @@ Invoke it with =M-x dired= or the =C-x C-j= bound above. Use =C-h m= as always t
 
 ** Vterm
 
-[[elisp:(describe-package 'vterm)][vterm]] is a full-featured terminal. Emacs has built-in eshell, shell, and (ansi-)term, ordered roughly in order of the number of programs' output they break. I like eshell for its Emacs integration, so I use that as a rule. However, it does break a lot; luckily, it provides a facility for using another terminal (external to Emacs or otherwise) to run certain commands known to break it. =vterm=, unlike any of the built-ins, handles everything, even including ncurses programs. It has no Windows compatibility, but then again the only thing that shines there is eshell, so the config is covered for such misfortune.
+[[elisp:(describe-package 'vterm)][vterm]] is a full-featured terminal. Emacs has built-in eshell, shell, and (ansi-)term, ordered roughly in order of the number of programs' output they break. I like eshell for its Emacs integration, so I use that as a rule. However, it does break a lot; luckily, it provides a facility for using another terminal (external to Emacs or otherwise) to run certain commands known to break it. =vterm=, unlike any of the built-ins, handles everything, even including ncurses programs. It has no Windows compatibility, but then again the only thing that shines there is eshell, so the config is covered for such misfortune. As an added bonus, it doesn't trample on the default Emacs bindings like =term= does, e.g. =M-x= and =C-x= are still usable normally.
 
 #+begin_src emacs-lisp
 
@@ -1248,12 +1279,79 @@ There is a shell config snippet needed to make the integration work well:
 
 ** Building Programs
 
-There's extensive, well-integrated, built-in support for compiling and debugging programs; see [[info:emacs#Building][Building]]. The [[elisp:(describe-package 'realgud)][realgud]] package extends the debugging functionality to a more modern set of external debuggers. See also the [[elisp:(describe-package 'fancy-compilation)][fancy-compilation]] package.
+There's extensive, well-integrated, built-in support for compiling and debugging programs; see [[info:emacs#Building][Building]]. The [[elisp:(describe-package 'realgud)][realgud]] package extends the debugging functionality to a more modern set of external debuggers. The [[elisp:(describe-package 'fancy-compilation)][fancy-compilation]] package just makes compilation-mode buffers look nice.
 
 #+begin_src emacs-lisp
 
+  (defun dnw/new-tivac-project ()
+    "Create a Tiva C project at the prompted location."
+    (interactive)
+    (let ((root (read-file-name "Location: ")))
+      (if (and root (not (file-exists-p root)))
+          (progn
+            (copy-directory "/home/dnw/Code/TivaC/prototype" root)
+            (shell-command (format "sed -i 's/<project_name>/%s/g' %s/Makefile" (f-base root) root))
+            (find-file (format "%s/src/main.c" root)))
+        (message "Directory %s not given or already exists." root))))
+
+  (defun dnw/debug-tivac-project ()
+    "When called with the current projectile project a valid Tiva C project, configure and set up an OpenOCD debug session \
+  using the GDB interface through RealGUD."
+    (interactive)
+    (if (not (featurep 'projectile))
+        (load-library "projectile"))
+    (let* ((project-name (f-base (projectile-project-root))))
+      (setq dnw/last-debugged-arm project-name)
+      (cd (projectile-project-root))
+      (start-process-shell-command "OpenOCD"
+                                   "*OpenOCD Output*"
+                                   (format "openocd -f /home/dnw/Code/TivaC/launchpad.cfg -c 'program bin/%s.elf reset'"
+                                           project-name))
+      (realgud:gdb (format "arm-none-eabi-gdb bin/%s.elf" project-name))
+      (realgud-command "target extended-remote localhost:3333")))
+
+  (defun dnw/debug-quit ()
+    "Clean up a debug session."
+    (interactive)
+    (let ((kill-buffer-query-functions nil))
+      (if (buffer-live-p (get-buffer "*OpenOCD Output*"))
+          (kill-buffer "*OpenOCD Output*"))
+      (if (buffer-live-p (get-buffer (format "*gdb %s.elf shell*" dnw/last-debugged-arm)))
+          (kill-buffer  (format "*gdb %s.elf shell*" dnw/last-debugged-arm)))))
+
+  (defun dnw/debug-recompile-restart ()
+    "Remake the project and start a new debugging session."
+    (interactive)
+    (cd (projectile-project-root))
+    (start-process-shell-command "TivaC compilation"
+                                 "*TivaC compilation*"
+                                 "make -B")
+    (let ((kill-buffer-query-functions nil))
+      (kill-buffer "*TivaC compilation*"))
+    (dnw/debug-quit)
+    (dnw/debug-tivac-project))
+
+  (defun dnw/debug-avr-project ()
+    (interactive)
+    (if (not (featurep 'projectile))
+        (load-library "projectile"))
+    (let* ((project-name (f-base (projectile-project-root))))
+      (setq dnw/last-debugged-avr project-name)
+      (cd (projectile-project-root))
+      (start-process-shell-command "AVRDude"
+                                   (format "avrdude -p t85 -c usbtiny -U flash:w:bin/%s.elf:e -P usb" project-name))
+      ;; (realgud:gdb (format "avr-gdb bin/%s.elf" project-name))
+      ;; (realgud-command)
+      ))
   (use-package realgud
-    :commands (realgud:gdb realgud:pdb))
+    :commands (realgud:gdb realgud:pdb)
+    :init
+    (global-set-key (kbd "C-c d p") 'dnw/debug-tivac-project)
+    (global-set-key (kbd "C-c d q") 'dnw/debug-quit)
+    (global-set-key (kbd "C-c d r") 'dnw/debug-recompile-restart))
+
+  (use-package fancy-compilation
+    :config (fancy-compilation-mode))
 
 #+end_src
 
@@ -1296,7 +1394,7 @@ Emacs has many features to relay information about the state of the system.
 
 ** Collaborative Editing
 
-[[elisp:(describe-package 'crdt)][Conflict-free Replicated Data Types]] enable Google docs-like collaboration on arbitrary Emacs buffers.
+[[elisp:(describe-package 'crdt)][Conflict-free Replicated Data Types]] enable Google Docs-like collaboration on arbitrary Emacs buffers.
 
 #+begin_src emacs-lisp
 
@@ -1352,7 +1450,7 @@ The [[elisp:(describe-package 'daemons)][daemons]] package lists all of the daem
       :commands daemons)
 
     (use-package systemd
-      :mode "\\.service\\'")
+      :mode ("\\.service\\'" . systemd-mode))
 
 #+end_src
 
@@ -1406,7 +1504,7 @@ Built-in to Emacs, [[info:epa#Top][epa]] enables all the usual GnuPG interaction
 
 ** Auth-Sources
 
-[[info:auth#Top][Auth-source]] is Emacs' built-in library for cleanly managing authentication to servers---including the local machine, via TRAMP's =sudo::=. It is set to only use =pass= as a source of authentication to enable platform-independent credential storage.
+[[info:auth#Top][Auth-source]] is Emacs' built-in library for cleanly managing authentication to servers---including the local machine, via TRAMP's =sudo::=. It is set to only use =pass= as a source of authentication to enable platform-independent, secure credential storage.
 
 #+begin_src emacs-lisp
 
@@ -1445,6 +1543,7 @@ Knowing things is better than not knowing things. And the WWW is a bit of a foot
     ([remap describe-variable] . helpful-variable)
     ([remap describe-key] . helpful-key)
     ([remap describe-symbol] . helpful-symbol)
+    :hook (helpful-mode . (lambda () (display-line-numbers-mode -1)))
     :config
     (setq helpful-max-buffers 1)) ;; Otherwise, litters buffer list way too much.
 
@@ -1457,9 +1556,9 @@ Knowing things is better than not knowing things. And the WWW is a bit of a foot
 
 #+end_src
 
-** WIth Externals
+** With Externals
 
-[[elisp:(describe-package 'inform)][Inform]] integrates Emacs' info viewer with the help system by linking to symbol documentation.
+[[elisp:(describe-package 'inform)][Inform]] integrates Emacs' info viewer with the help system by linking to symbol documentation. See [[elisp:(describe-package 'woman)][woman]] for Emacs's =man= alternative.
 
 #+begin_src emacs-lisp
 
@@ -1468,6 +1567,15 @@ Knowing things is better than not knowing things. And the WWW is a bit of a foot
 
   ;; Turns symbols in Info mode into links to their documentation
   (use-package inform)
+
+  (defun dnw/woman-visual-fill ()
+    (display-line-numbers-mode -1)
+    (setq visual-fill-column-width 80
+          visual-fill-column-center-text t)
+    (visual-fill-column-mode 1))
+
+  (use-package woman
+    :hook (woman-mode . dnw/woman-visual-fill))
 
 #+end_src
 
@@ -1549,14 +1657,15 @@ Even though Org is pretty readable as-is, we can get basically WYSIWYG levels wi
     :ensure-system-package ("/usr/lib/ImageMagick-7.1.1" . imagemagick))
 
   ;; Prevent text from getting uncomfortably wide on widescreen monitors.
-  (defun dnw/org-mode-visual-fill ()
+  (defun dnw/visual-fill ()
     (setq visual-fill-column-width 140
           visual-fill-column-center-text t)
     (visual-fill-column-mode 1))
 
   ;; ibid.
   (use-package visual-fill-column
-    :hook (org-mode . dnw/org-mode-visual-fill))
+    :hook ((org-mode . dnw/visual-fill)
+           (eww-mode . dnw/visual-fill)))
 
   ;; Fancy bullet points in headings.z
 
@@ -1570,7 +1679,7 @@ Even though Org is pretty readable as-is, we can get basically WYSIWYG levels wi
                                  (org-level-6 . 1.0)
                                  (org-level-7 . 1.0)
                                  (org-level-8 . 1.0)))
-                   (set-face-attribute (car face) nil :font "Liberation Sans" :weight 'regular :height (cdr face)))
+                   (set-face-attribute (car face) nil :font "IBM Plex Sans" :weight 'regular :height (cdr face)))
 
       (set-face-attribute 'fixed-pitch nil :font "Iosevka" :weight 'regular :height 1.0)
       (set-face-attribute 'org-block nil :foreground nil :inherit 'fixed-pitch)
@@ -1600,10 +1709,11 @@ Even though Org is pretty readable as-is, we can get basically WYSIWYG levels wi
 
 ** Babel
 
-
 =org-babel= is a subsystem that allows actual /execution/ of code blocks embedded in org documents. The results of these code blocks can be composed for a Jupyter-like experience. It's a very beautiful thing---a great trick for data analysis is to yank plaintext data into an org-mode buffer, use =C-c |= to turn it into an org table, and then give that table a name and feed it into SQL, Python, R, or Julia source blocks to do analysis on it. =org-tempo= is a built-in way to quickly insert code blocks for particular languages.
 
 #+begin_src emacs-lisp
+
+  (use-package org-contrib)
 
   ;; Load the modules for the languages desired.
   (with-eval-after-load 'org
@@ -1617,6 +1727,8 @@ Even though Org is pretty readable as-is, we can get basically WYSIWYG levels wi
        (sqlite . t)
        (haskell . t)
        (lua . t)
+       (coq . t)
+       (scheme . t)
        (shell . t)
        (C . t)))
 
@@ -1627,6 +1739,7 @@ Even though Org is pretty readable as-is, we can get basically WYSIWYG levels wi
     (require 'org-tempo)
     (add-to-list 'org-structure-template-alist '("sh" . "src shell"))
     (add-to-list 'org-structure-template-alist '("el" . "src emacs-lisp"))
+    (add-to-list 'org-structure-template-alist '("sc" . "src scheme"))
     (add-to-list 'org-structure-template-alist '("py" . "src python3"))
     (add-to-list 'org-structure-template-alist '("ft" . "src fortran"))
     (add-to-list 'org-structure-template-alist '("gp" . "src gnuplot"))
@@ -1634,12 +1747,12 @@ Even though Org is pretty readable as-is, we can get basically WYSIWYG levels wi
     (add-to-list 'org-structure-template-alist '("r" . "src R"))
     (add-to-list 'org-structure-template-alist '("hs" . "src haskell"))
     (add-to-list 'org-structure-template-alist '("lu" . "src lua"))
+    (add-to-list 'org-structure-template-alist '("coq" . "src coq"))
     (add-to-list 'org-structure-template-alist '("sys" . "src C")))
 
 #+end_src
 
 ** Tangle
-
 
 Code blocks in org-mode can be written out to files on the disk. This is quite useful for literate configuration like this, especially for code snippets that don't depend on each other much or for languages like Haskell with great referential transparency, so that order doesn't matter.
 
@@ -1664,7 +1777,6 @@ Code blocks in org-mode can be written out to files on the disk. This is quite u
 #+begin_src emacs-lisp
 
     (use-package org-roam
-      :ensure t
       :init
       (setq org-roam-v2-ack t)
       :custom
@@ -1710,7 +1822,8 @@ Code blocks in org-mode can be written out to files on the disk. This is quite u
 
 #+begin_src emacs-lisp
 
-  (use-package org-drill)
+  (use-package org-drill
+    :commands (org-drill))
 
 #+end_src
 
@@ -1720,7 +1833,8 @@ Code blocks in org-mode can be written out to files on the disk. This is quite u
 
 #+begin_src emacs-lisp
 
-  (use-package org-present)
+    (use-package org-present
+      :commands (org-present))
 
 #+end_src
 
@@ -1738,12 +1852,12 @@ See [[elisp:(describe-package 'org-board)][org-board]].
 
 ** PDF integration
 
-[[elisp:(describe-package 'org-pdftools)][Org-pdftools]] enables links to PDFs in org-mode
+[[elisp:(describe-package 'org-pdftools)][Org-pdftools]] enables links to PDFs from org-mode.
 
 #+begin_src emacs-lisp
 
-  (use-package org-pdftools
-    :hook (org-mode . org-pdftools-setup-link))
+  ;; (use-package org-pdftools
+  ;;   :hook (org-mode . org-pdftools-setup-link))
 
 #+end_src
 
@@ -1769,7 +1883,7 @@ A mode I wrote/am writing for interacting with JAEA's PHITS.
 
 ** Calc
 
-The built-in [[https://www.gnu.org/software/emacs/manual/html_mono/calc.html][Calc]] is hands-down the best calculator I've ever used that wasn't built to be a CAS from the ground-up. As examples: it has inbuilt, default support for [[https://en.wikipedia.org/wiki/Mobius_function][Möbius functions]], computing Taylor series, and doing IO on LaTeX-formatted algebraic expressions. The package [[elisp:(describe-package 'literate-calc-mode)][literate-calc-mode]] enables using it to evaluate computations embedded in normal buffers.
+The built-in [[info:calc.info.gz#Top][Calc]] is hands-down the best calculator I've ever used that wasn't built to be a CAS from the ground-up. As examples: it has inbuilt, default support for [[https://en.wikipedia.org/wiki/Mobius_function][Möbius functions]], computing Taylor series, and doing IO on LaTeX-formatted algebraic expressions. The package [[elisp:(describe-package 'literate-calc-mode)][literate-calc-mode]] enables using it to evaluate computations embedded in normal buffers.
 
 #+begin_src emacs-lisp
 
@@ -1797,17 +1911,27 @@ The built-in [[https://www.gnu.org/software/emacs/manual/html_mono/calc.html][Ca
 
 #+end_src
 
-** Lean
+** Proof Assistants
+*** Lean
 
-[[elisp:(describe-package 'lean-mode)][Lean-mode]], the best interface to a based proof verifier/dependently-typed functional programming language.
+[[elisp:(describe-package 'lean-mode)][Lean-mode]], the best interface to a based proof verifier/dependently-typed functional programming language. TODO: no longer lean-mode, but lean4
 
 #+begin_src emacs-lisp
 
-  (use-package lean-mode
-    :commands lean-mode
-    ;; the quail-completion buffer for the input mode is annoying
-    :config (with-eval-after-load 'quail (defun quail-completion ()))
-    :mode "\\.lean\\'")
+  (add-to-list 'load-path "~/.emacs.d/manual/lean4-mode")
+  (require 'lean4-mode) ;; Manually-installed package
+  (setq lean4-memory-limit 1024)
+  (setq lean4-rootdir "~/Code/Source/lean-4.5.0-linux_x86/")
+
+#+end_src
+
+*** Coq and Others
+
+[[elisp:(describe-package 'proof-general)][ProofGeneral]] is a generic proof assistant interface, set up initially to support Coq, EasyCrypt, qrh-tool, and PhoX.
+
+#+begin_src emacs-lisp
+
+  (use-package proof-general)
 
 #+end_src
 
@@ -1844,6 +1968,41 @@ The default python-mode is quite good, but if colleagues are not similarly-enlig
 
   (use-package python
     :mode "\\.py\\'")
+
+#+end_src
+
+** Julia
+
+A fast, Lisp-inspired language with top-tier metaprogramming, designed for scientific computation, but general enough to express a library for reasoning in arbitrary generalized algebraic theories.
+
+#+begin_src emacs-lisp
+
+      (use-package julia-mode
+        :commands julia-mode
+        :mode "\\.jl\\'")
+
+      (use-package julia-repl
+        :commands julia-repl
+        :hook ((julia-mode . julia-repl-mode)))
+
+#+end_src
+
+** Maxima
+
+Archlinux32 is yet to have SageMATH support, for whatever reason, so we'll need to muck about with this low-level stuff for the time being.
+
+#+begin_src emacs-lisp
+
+  (use-package maxima
+    :commands maxima-mode
+    :init
+    (add-hook 'maxima-mode-hook #'maxima-hook-function)
+    (add-hook 'maxima-inferior-mode-hook #'maxima-hook-function)
+    (setq
+           ;; org-format-latex-options (plist-put org-format-latex-options :scale 2.0) IDK what this does
+           maxima-display-maxima-buffer nil)
+    :mode ("\\.mac\\'" . maxima-mode)
+    :interpreter ("maxima" . maxima-mode))
 
 #+end_src
 
@@ -1922,7 +2081,7 @@ Emacs' built-in TeX-editing features, via [[elisp:(describe-package 'AUCTeX)][AU
     (setq TeX-auto-save t)
     (setq TeX-parse-self t)
     (setq-default TeX-master t) ;; Usually, files are their own masters.
-    (setq LaTeX-command "latex -shell-escape") ;; Warning: security risk; don't compile third-party source.
+    (setq LaTeX-command "latex --shell-escape") ;; Warning: security risk; don't compile third-party source.
     (setq reftex-plug-into-AUCTeX t) ;; Enable reftex.
     (setq TeX-electric-sub-and-superscript t) ;; really nice raising and lowering of sub- and superscripts in the source lines.
     (setq TeX-view-program-selection '((output-pdf "PDF Tools")))) ;; Use pdf-tools for output.
@@ -1948,13 +2107,20 @@ See the [[info:auctex#Top][manual]].
 Interact easily with PDFs from Emacs, with the aid of [[elisp:(describe-package 'pdf-tools)][pdf-tools]]. Great for working with AUCTeX, apparently.
 
 #+begin_src emacs-lisp
-  ;; Done from Guix
-  (use-package pdf-tools
-    :mode "\\.pdf\\'"
-    :config
-    (pdf-loader-install))
+    ;; Done from Guix
+    (use-package pdf-tools
+      :commands pdf-view-mode
+      :mode ("\\.pdf\\'" . pdf-view-mode)
+      :hook ((pdf-view-mode . pdf-view-themed-minor-mode)
+             (pdf-view-mode . (lambda () (display-line-numbers-mode -1) (auto-revert-mode))))
+      :config
+      (pdf-loader-install))
 
 #+end_src
+
+** DocView
+
+Built in to Emacs, [[info:emacs#Document View][DocView mode]] is great for interacting with a variety of built-in modes. =Pdf-tools= is an enhancement of this mode; its basic functionality works great for DVI, PS, ODT, and Word documents.
 
 ** ASCII Art
 
@@ -1980,6 +2146,18 @@ Can't remember atomic numbers? Enter [[elisp:(describe-package 'chemtable)][chem
 
   (use-package chemtable
     :commands chemtable)
+
+#+end_src
+
+** Gemini
+
+The markup language, specifically.
+
+#+begin_src emacs-lisp
+
+  (use-package gemini-mode
+    :commands (gemini-mode)
+    :mode "\\.gmi\\'")
 
 #+end_src
 
@@ -2053,16 +2231,23 @@ Emacs' built-in IRC client. Very feature-complete, and integrates with auth-sour
 TODO: debug
 Alphapapa's Matrix client, [[elisp:(describe-package 'ement)][ement]]. Very useful, especially as Matrix may be bridged to nonfree or primarily-mobile chat protocols via puppeting. However, currently just spits tons of errors.
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 
-    (use-package ement
-      :commands ement-connect)
+  (use-package ement
+    :commands ement-connect)
 
 #+end_src
 
 ** Address Book
 
-See: [[elisp:(describe-package 'bbdb)][bbdb]]
+The BBDB is a great address book management software that integrates very well with Gnus and all that. Too bad I don't find it necessary; I checked my google contacts, and my third-most frequent contact was someone to whom I think I've sent 2 or 3 emails...
+
+#+begin_src emacs-lisp :tangle no
+
+    (use-package bbdb
+      :config (bbdb-initialize 'gnus 'message))
+
+#+end_src
 
 ** Mastodon
 
@@ -2070,28 +2255,46 @@ See [[elisp:(describe-package 'mastodon)][mastodon]].
 
 ** Mail
 
-TODO: finalize. Look into [[elisp:(describe-package 'gnorb)][gnorb]] and bbdb
+TODO: finalize. Look into [[elisp:(describe-package 'gnorb)][gnorb]] and [[elisp:(describe-package 'bbdb)][BBDB]].
 
-I choose to use the built-in =gnus=, as it has the most extensive features for sorting mail, due to its heritage as primarily a newsreader. There is also the built-in native =rmail=, the built-in but requiring external binary [[elisp:(describe-package 'mh-e)][mh-e]], and completely externally [[elisp:(describe-package 'notmuch)][notmuch]], [[elisp:(describe-package 'notmuch)][notmuch]], [[elisp:(describe-package 'wanderlust)][wanderlust]], and [[elisp:(describe-package 'mew)][mew]], which appear to principally offer performance advantages, but with less extensive (?) sorting tools. See also [[elisp:(describe-package 'nndiscourse)][nndiscourse]] et. al. in the package list for various gnus backends for those other protocols. [[elisp:(describe-package 'message-attachment-reminder)][Message-attachment-reminder]] reminds you to attach things, and [[elisp:(describe-package 'org-msg)][org-msg]] lets one compose emails with org syntax.
+I choose to use the built-in =gnus=, as it has the most extensive features for sorting mail, due to its heritage as primarily a newsreader. There is also the built-in native =rmail=, the built-in but requiring external binary [[elisp:(describe-package 'mh-e)][mh-e]], and completely externally [[elisp:(describe-package 'notmuch)][notmuch]],  [[elisp:(describe-package 'wanderlust)][wanderlust]], and [[elisp:(describe-package 'mew)][mew]], which appear to principally offer performance advantages, but with less extensive sorting tools. See also [[elisp:(describe-package 'nndiscourse)][nndiscourse]] et. al. in the package list for various gnus backends for those other protocols. [[elisp:(describe-package 'message-attachment-reminder)][Message-attachment-reminder]] reminds you to attach things, and [[elisp:(describe-package 'org-msg)][org-msg]] lets one compose emails with org syntax.
+[[http://news.gwene.org][Gwene]] is a bridge between RSS/Atom and nntp; if you'd like to read Atom feeds natively (nnrss doesn't support it), see the brand-new [[https://git.sr.ht/~dsemy/nnatom
+        ][nnatom]].
 
 #+begin_src emacs-lisp
 
-    (setq user-mail-address "antigravityd@gmail.com"
-          user-full-name "Duncan Wilkie")
+    (setq read-mail-command 'gnus)
 
-    (setq gnus-select-method '(nnimap "gmail"
-                                      (nnimap-address "imap.gmail.com")
-                                      (nnimap-server-port "imaps")
-                                      (nnimap-stream ssl)))
-    (setq smtpmail-smtp-server "smtp.gmail.com"
+    (setq user-mail-address "duncannwilkie@gmail.com"
+          user-full-name "Duncan Wilkie"
+          message-signature "- Duncan")
+
+    (setq gnus-select-method
+          '(nnnil "")
+          gnus-secondary-select-methods
+          '((nnmaildir "private" (directory "~/.mail"))
+            (nntp "news.gwene.org")
+            (nnrss)))
+
+    (setq smtpmail-smtp-server "mail.functorial.xyz"
+          smtpmail-smtp-user "dnw"
           smtpmail-smtp-service 587
-          gnus-ignored-newsgroups "^to\\.\\|^[0-9. ]+\\( \\|$\\)\\|^[\"]\"[#'()]")
+          message-send-mail-function 'smtpmail-send-it)
 
+    (defun dnw/mbsync ()
+      (message "%s" "Syncing maildir...")
+      (let ((exit (shell-command "mbsync -a")))
+        (if (= exit 0)
+            (message "%s" "Maildir synced.")
+          (message "Maildir syncing exited with code %d" exit)))
+      (kill-buffer "*Shell Command Output*"))
+
+    (add-hook 'gnus-startup-hook 'dnw/mbsync)
     ;; Search for "see attached" etc. and warn if attachment is forgotten.
     (use-package message-attachment-reminder)
 
-    ;; Send HTML messages with org-mode.
-    (use-package org-msg)
+    ;; Format HTML messages with org-mode. Currently doesn't work.
+    ;; (use-package org-msg)
 
 #+end_src
 
@@ -2099,9 +2302,50 @@ I choose to use the built-in =gnus=, as it has the most extensive features for s
 
 See [[elisp:(describe-package 'telega)][telega]].
 
+* Content Production
+
+Things that involve mostly unidirectional, producer-to-consumer information exchange, producer me.
+
+** Haunt
+
+[[https://dthompson.us/projects/haunt.html][Haunt]] is a static-site generator written and configured in Guile Scheme. I use it to manage my personal site [[https://functorial.xyz][functorial.xyz]]. The package [[elisp:(describe-package 'ox-haunt)][ox-haunt]] provides an org-export backend for HTML suitable to feed to Haunt's =html-reader=.
+
+#+begin_src emacs-lisp
+
+  (defun dnw/make-blog-post ()
+    (interactive)
+    (let* ((short-name (read-string "Short name: "))
+           (parent-dir-path (concat ox-haunt-base-dir "/org/" short-name))
+           (file-path (concat parent-dir-path "/" short-name ".org")))
+      (make-directory parent-dir-path)
+      (find-file file-path)
+      (skeleton-insert '(nil "#+TITLE: " (read-string "Title: ") "\n"
+                             "#+DATE: " '(progn (setq current-prefix-arg '(16))
+                                                (call-interactively 'org-time-stamp))
+                             "\n"
+                             "#+TAGS: " ("Tag: " str ", ") -2 "\n\n"
+                             "* "))))
+
+
+  (use-package ox-haunt
+    :init (setq ox-haunt-base-dir "/home/dnw/Documents/Websites/functorial.xyz")
+    :bind ("C-c b" . dnw/make-blog-post))
+
+#+end_src
+
+** Gemini
+
+I mirror the personal site above to as many BASED alternatives to the Web as I can. I've currently managed [[https://geti2p.net/en][I2P]] and [[https://gemini.circumlunar.space][Gemini]]; this is the package by which I integrate the latter. I've actually found an alternative, so disabling this for now.
+
+#+begin_src emacs-lisp
+
+  ;; (use-package ox-gemini)
+
+#+end_src
+
 * Content Consumption
 
-Things that involve mostly unidirectional, producer-to-consumer information exchange.
+Things that involve mostly unidirectional, producer-to-consumer information exchange, consumer me.
 
 ** Stack Exchange
 
@@ -2128,7 +2372,7 @@ Use Stack Exchange sites from Emacs via [[elisp:(describe-package 'sx)][sx]]:
 
 [[elisp:(describe-package 'biblio)][Biblio]] adds citations automatically from a variety of sources. [[elisp:(describe-package 'citar)][Citar]] is a citation integration package. See also [[elisp:(describe-package 'citeproc)][citeproc]], [[elisp:(describe-package 'ebib)][ebib]], [[elisp:(describe-package 'gscholar-bibtex)][gscholar-bibtex]], [[elisp:(describe-package 'scholar-import)][scholar-import]], [[elisp:(describe-package 'slirm)][slirm]], and [[elisp:(describe-package 'zotero)][zotero]].
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 
   (use-package biblio
     :commands (biblio-lookup
@@ -2167,7 +2411,8 @@ Uses Emacs' built-in RSS reader [[elisp:(describe-package 'elfeed)][elfeed]]. Cu
           elfeed-show-entry-switch 'display-buffer) ;; Open articles side-along---useful for skimming abstracts.
     ;; Configure article sources.
     (setq elfeed-feeds
-          '("http://feeds.aps.org/rss/allsuggestions.xml"  ;; Physics
+          '(;; Actual blogs
+            "http://feeds.aps.org/rss/allsuggestions.xml"  ;; Physics
             "http://feeds.aps.org/rss/recent/rmp.xml"
 
             "https://lexi-lambda.github.io/feeds/all.rss.xml" ;; CS
@@ -2178,17 +2423,242 @@ Uses Emacs' built-in RSS reader [[elisp:(describe-package 'elfeed)][elfeed]]. Cu
             "https://golem.ph.utexas.edu/category/atom10.xml"
             "https://homotopytypetheory.org/feed/"
 
-            "https://notrelated.xyz/rss")) ;; Misc
+            "https://notrelated.xyz/rss" ;; Misc
+
+            ;; Youtube feeds
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCp4oMaqaY0hIoT9jafj1g8g" ;;  "1791"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC2LZO6swZ9SLUEOks3WnsfA" ;;  "2veritasium"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCYO_jab_esuFRV4b17AJtAw" ;;  "3Blue1Brown"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCsrKsXEAqCbZyVrCibkgpwQ" ;;  "9-Hole Reviews"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCzBjutX2PmitNF4avysL-vg" ;;  "Aleph 0"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCKtix2xNNXdcEfEFnoOnvMw" ;;  "Aliensrock"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCnAKuzfWjjWQoGJS4ORJXag" ;;  "aloneintokyo"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCCWeRTgd79JL0ilH0ZywSJA" ;;  "AlphaPhoenix"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCxAS_aK7sS2x_bqnlJHDSHw" ;;  "America's Test Kitchen"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCJsinEiaDqEn8a-GcADVEVA" ;;  "Andrea Borman"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCnFmWQbVW_YbqPQZGNuq8sA" ;;  "Andrew Dotson"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCN3rhkHmloHwqgat8LHk2yg" ;;  "Angry Cops"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCHnK83dqyPvFo6GX0rCwn8A" ;;  "apetor"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCivA7_KLKWo43tFcCkFvydw" ;;  "Applied Science"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC1LpsuAUaKoMzzJSEt5WImw" ;;  "Asianometry"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC-9b7aDP6ZN0coj9-xFnrtw" ;;  "Astrum"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCbCq5Y0WPGimG2jNXhoQxGw" ;;  "Atomic Frontier"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCGo5uT3qxwsSidWL_j-YDcw" ;;  "Autodidact"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCwe5Z3D20uVMs0HG-faN4Lg" ;;  "BagelBoy"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCCE2NBqiuO-BkYEmt36z2lw" ;;  "Banach Center"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCVXvGJ5GXPY7L0ti6_TxdPA" ;;  "Barry"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC5d3EwBqgsmHHyBCcq_Af_A" ;;  "BEARTOOTHband"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCS0N5baNlQWJCUrhCEo8WlA" ;;  "Ben Eater"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCWZp4y1jqBuvLtiyxSs_ZBw" ;;  "Big guy"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCq6aw03lNILzV96UvEAASfQ" ;;  "bill wurtz"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCorikuuyFz1dZLo3N9nHc4w" ;;  "Blarg"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCFeIEAkqvS4fJMTwUtF4OFw" ;;  "Boarbarktree"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCM0B2tvEttmL-gFP1_sgvSA" ;;  "bogdanhxc"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC7W5LTUy7DJYpx0cpVKJe0g" ;;  "BoredGamer"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCwkDQ8tE_3UhB8LcnvUv0Fw" ;;  "Bosnian Ape Society"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCILl8ozWuxnFYXIe2svjHhg" ;;  "BPS.space"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCTrSsPMmZavLbc3Ex7VhjDg" ;;  "Brandon Herrera"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCNB4XPkbXxdqQTmxWzJ9w1g" ;;  "Brandon Herrera - B Side"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC3g-w83Cb5pEAu5UmRrge-A" ;;  "Brandon Sanderson"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCn5fhcGRrCvrmFibPbT6q1A" ;;  "Brian Lagerstrom "
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCseUQK4kC3x2x543nHtGpzw" ;;  "Brian Will"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCpR62MSOeBQVXub13xwZ8aA" ;;  "Brilliant.org"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_H4bMrLZ4IXTf0JffOJ8fQ" ;;  "Britannica"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC8zDMqadnLmFDPr4veu2z6w" ;;  "Bryan Deister"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCsTjELjL9BjnbUVrH0wBGgQ" ;;  "burytomorrow"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCtYyHvCEB6rXZF7EIRjDeiQ" ;;  "Cam Taylor"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCCDOQrpqLqKVcTCKzqarxLg" ;;  "ChessNetwork"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC59BbQ3n3wnDLqRcEZcGatg" ;;  "Clay Mathematics Institute"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC0e3QhIYukixgh5VVpKHH9Q" ;;  "Code Bullet"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCkHt706cPTznWOy3nsk9zmQ" ;;  "Cody Townsend"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCu6mSoMNzHQiBIOCkHUa2Aw" ;;  "Cody'sLab"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCp68_FLety0O-n9QU6phsgw" ;;  "colinfurze"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC9-y-6csu5WGm29I7JiwpnA" ;;  "Computerphile"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC7SeFWZYFmsm1tqWxfuOTPQ" ;;  "Count Dankula"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCRLO8HU2LWaMH6mjbQ1falQ" ;;  "Count Dankula 2 : Electric Boogaloo"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UClq42foiSgl7sSpLupnugGA" ;;  "D!NG"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCxbOjzYaOGbZFYKP3DR4gBA" ;;  "Dallas Soup"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCL9oIFoVMW0h5hE_dSQ7pJA" ;;  "Dane Jackson"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UChcmKGMMMemwb291yVEtXHA" ;;  "Dave MacLeod"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCEfe80CP2cs1eLRNQazffZw" ;;  "Dave Smith"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCDrekHmOnkptxq3gUU0IyfA" ;;  "Devon Crawford"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC3KV2kFy2YhjYvverIy2WnA" ;;  "Dialect"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCwkm_Wcyh0pc7UUmZZfL-6w" ;;  "Donut Operator"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCoOjTxz-u5zU0W38zMkQIFw" ;;  "Dr Peyam"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCBKXQ-XSihIdD5Xh82F8MpA" ;;  "Elmapuddy"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCtHgrs6J_aKGxkLzpKC9gqw" ;;  "Elo Hell Overwatch"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCisjF-Un7hf9lsMhoStF3OQ" ;;  "Epic Math Time"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCDq5v10l4wkV5-ZBIJJFbzQ" ;;  "Ethan Chlebowski"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCD6TNUYpyDYv2B5M8Xuv_uw" ;;  "Evan Page"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCVovvq34gd0ps5cVYNZrc7A" ;;  "Explosions&Fire"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCvFApMFo_AafXbHRyEJefjA" ;;  "Extractions&Ire"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_KtI9vI8V8eYL-gty0XhVw" ;;  "Faulty Lid Gaming"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCIUPBxtBMQvssqSbx73t8SQ" ;;  "Fematika"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCqq5t2vi_G753e19j6U-Ypg" ;;  "Femboy Fishing"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCQwal7KaCKPDWarooZ3p4Kw" ;;  "Firearms Policy Coalition"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCHZ986wm_sJT6wntdDTIIcw" ;;  "FitMC"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCtAIs1VCQrymlAnw3mGonhw" ;;  "Flammable Maths"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCPctvztDTC3qYa2amc8eTrg" ;;  "Flammy's Wood"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCi2KNss4Yx73NG0JARSFe0A" ;;  "Foo Fighters"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCrfKGpvbEQXcbe68dzXgJuA" ;;  "Forgotten Weapons"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCfRmCtbHzvcOq6V8i9pKBVQ" ;;  "Free Cities Foundation"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC0RBTQIYLEQbcahZWkmzeTQ" ;;  "Garand Thumb"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCJetJ7nDNLlEzDLXv7KIo0w" ;;  "Gavin Freeborn"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCodkNmk9oWRTIYZdr_HuSlg" ;;  "GoodTimesWithScar"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC78Ib99EBhMN3NemVjYm3Ig" ;;  "Grant Sanderson"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCR9Gcq0CMm6YgTzsDxAxjOQ" ;;  "Grian"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCFJ2K2gUJJ1ecBU6Sxc3bCA" ;;  "Gun Owners of America"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCZgHOeJBfMKOZ5PMlZysy8Q" ;;  "Harvard Mathematics Department"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC6zVKDAekLKmdOa6LnkggIA" ;;  "Hear Between The Lines"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UChpiQy7AuKxVAdGj2dB1x1Q" ;;  "HOUNGOUNGAGNE"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC26YLK0OEbLB3TCYxGh8xVQ" ;;  "Huygens Optics"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC8aRaZ6_0weiS50pvCmo0pw" ;;  "Institute for Advanced Study"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCKATpqr7Tm1JF__UILI3dpA" ;;  "Into the Agora"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCZ9x-z3iOnIbJxVpm1rsu2A" ;;  "iskall85"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCZzwQDDag5eP4Rs-2d4nX5g" ;;  "iterorganization"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCj01nmp8VGW6tYPfLYIj3_Q" ;;  "James Reeves"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCyQhRZev-3kwNDmEgzjO8MA" ;;  "Jayne Clips"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCEXFSf2qoF4ZNZ5sSBsYIkw" ;;  "JERICHO"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_a7aDiW2A9g-7esXDHEnng" ;;  "Jesse's Teahouse"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCuQxF3ll00WJKXfv7q9Gk0g" ;;  "Jhofffilms"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCvAovXWLq8Q6VITKAB_Rjww" ;;  "Jim Lill"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCfcc8OORrouV1lO_qeIZVNQ" ;;  "Jimmy Here"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCl9E4Zxa8CVr2LBLD0_TaNg" ;;  "Jomboy Media"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCL_f53ZEJxp8TtlOkHwMV9Q" ;;  "Jordan B Peterson"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UChBEbMKI1eCcejTtmI32UEw" ;;  "Joshua Weissman"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC2mP7il3YV7TxM_3m6U0bwA" ;;  "jschlattLIVE"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC54RgORww0lUMVq4NwdwANQ" ;;  "Killswitch Engage"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCyabCqc2M3J9HItEroLOTvA" ;;  "Kmac2021"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCapVX78fNIkqPJc-HpSI-XA" ;;  "Kyle Brownlee"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCob_jm6ikyHVKRkgcB7Irrg" ;;  "Kyle Rittenhouse"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCAt-Dw4uRUV6U-hED3a5ssQ" ;;  "Legally Armed America"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCEI9wNw9a4cJfejeAU6J2wQ" ;;  "LetsSolveMathProblems"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCSHZKyawb77ixDdsGog4iWA" ;;  "Lex Fridman"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCJeZwRfSPX00f4bB7gOeN5w" ;;  "Liberty Lockdown"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCwV_0HmQkRrTcrReaMxPeDw" ;;  "loltyler1"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC2eYFnH61tmytImy1mTYvhA" ;;  "Luke Smith"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCGqP6bsV2j8kyv1g_z3TyFQ" ;;  "Man Against The State"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCBNHHEoiSF8pcLgqLKVugOw" ;;  "Marcus House"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCRUULstZRWS1lDvJBzHnkXA" ;;  "Matt and Tom"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCL_BZpt0J9Kqwy6YPWr30ow" ;;  "Mav"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCvmWj7t7nP3yOSU_rl9doCQ" ;;  "McNasty"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC-04mJDJUYHEyE8JPIEa0-w" ;;  "Mediocre Amateur"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC7YOGHUfC1Tb6E4pudI9STA" ;;  "Mental Outlaw"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC5tj5QCpJKIl-KIa4Gib5Xw" ;;  "Michael Malice"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCzk08fzh5c_BhjQa1w35wtA" ;;  "Michael Nayna"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC6jM0RFkr4eSkzT5Gx0HOAw" ;;  "Michael Penn"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCtHaxi4GTYDpJgMSGy7AeSw" ;;  "Michael Reeves"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCW1UuxWxsY5fusi71diaK4g" ;;  "Mike Battaglia"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC1By4oBZiv9u8qnkcdCgdqw" ;;  "Mike Haduck Masonry"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCZ-qxagOkAmCEP-Tu6YliUQ" ;;  "Military Arms Channel"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCmT6-ChKpaiIVu2fhEIsNtQ" ;;  "misesmedia"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCf9kuiQ8GXwXWrHZJUl1XNA" ;;  "More Tren More Men"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCiPdjrLoUsyJh3XS7Aw7rzg" ;;  "Morphologis"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCU9SoQxJewrWb_3GxeteQPA" ;;  "Mr Carlson's Lab"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UChFur_NwVSbUozOcF_F2kMg" ;;  "Mumbo Jumbo"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCCcrR0XBH0aWbdffktUBEdw" ;;  "Mutual Information"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC4gs8rXqG5G15QYhtNeM0EQ" ;;  "Myron Cook"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCSSdYbcknpccfN6OMzO8XlA" ;;  "Ncs Artist"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCVRm2Ho8cL3lvWDyp2ayuFw" ;;  "New Heights"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCLhcQ0bBZTLipRJ7D42Riow" ;;  "Nik Nocturnal"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCy1a9TTEuEgfH9Py9sTVqdQ" ;;  "Nikolai Schirmer"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCoxcjq-8xIDTYp3uz647V5A" ;;  "Numberphile"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCyp1gCHZJU_fGWFf2rtMkCg" ;;  "Numberphile2"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCtwKon9qMt5YLVgQt1tvJKg" ;;  "Objectivity"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC7pvyo_7XQULlg6TMy7yviw" ;;  "Ordnance Lab"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCv7UnD_8hNgQlOKCR5eT7uQ" ;;  "Parley Koster"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCmcCGOWBcvTcw9HIF3JASIg" ;;  "PaymoneyWubby Highlights"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCs4aHmggTfFrpkPcWSaBN9g" ;;  "PBS Infinite Series"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC7_gcs09iThXybpVgjHZ_7g" ;;  "PBS Space Time"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCtESv1e7ntJaLJYKIO1FoYw" ;;  "Periodic Videos"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCMOqf8ab-42UUQIdVoKwjlQ" ;;  "Practical Engineering"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC0uTPqBCFIpZxlz_Lv1tk_g" ;;  "Protesilaos Stavrou"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCGLTvOqJOcbIwBtX0Rou2gw" ;;  "Rags"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCfQgsKhHjSyRLOp9mnffqVg" ;;  "Renaissance Periodization"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UChJP9CkQnCodWR9ZXwE8IdA" ;;  "Reno May"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCHAtzWEoegu7Z5zEVzjOM_Q" ;;  "Richard Southwell"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCyDZai57BfE_N0SaBkKQyXg" ;;  "Rob Scallon"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCsyREevg_cpdpa9w5VZIVZA" ;;  "Robert Murphy"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCfSVMX8vs7xA_hqFcuFqgwQ" ;;  "RossBoomsocks"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UClY084mbGLK_SLlOfgizjow" ;;  "SalC1"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCcebf-V9MXA5EPjgATYIVoA" ;;  "Schrödinger"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCGRB1ZjIqAiaGwt-XLq9CnA" ;;  "Sciencium"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCxzC4EngIsMrPmbm6Nxvb-A" ;;  "Scott Manley"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC5syIuMiCsVyfSpFD-DtjEA" ;;  "seasteading"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCvBqzzvUBLCs8Y7Axb-jZew" ;;  "Sixty Symbols"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC8VkNBOwvsTlFjoSnNSMmxw" ;;  "Smarter Every Day 2"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC6107grRI4m0o2-emgoDnAA" ;;  "SmarterEveryDay"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCifRgVk-GEo1_vvf8x53t6A" ;;  "Soup"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCQD3awTLw9i8Xzh85FKsuJA" ;;  "SovietWomble"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCiIu5_NeaCkv3Nt8R5u7pNg" ;;  "Space Engineers"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC1Crbon9_pHDEXm5aKHTeAQ" ;;  "Splitsie"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC3S8vxwRfqLBdIhgRlDRVzw" ;;  "stacksmashing"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCSju5G2aFaWMqn-_0YBtq5A" ;;  "Stand-up Maths"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCm5mt-A4w61lknZ9lCsZtBw" ;;  "Steve Brunton"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCJYJgj7rzsn0vdR7fkgjuIA" ;;  "styropyro"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC3azLjQuz9s5qk76KEXaTvA" ;;  "suckerpinch"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCAiiOTio8Yu69c3XnR7nQBQ" ;;  "System Crafters"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCJGgP4txIUr_7JTDvOGVQrA" ;;  "Ted Nivison"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC_UIv3VyuTLSQKb3VotPRLQ" ;;  "Ted Nivison VODS"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCE1KT9DTZCQtf3PmAmWwOIA" ;;  "Tenth Amendment Center"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCRNKiKbbmMASDBvVV6JkA6w" ;;  "Texfire"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCnKbs5xffaEzzdKdPZvfhdQ" ;;  "TFB TV"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCLqiVhDT4QvHbKpaDCbokfw" ;;  "The Official Dwayne \"The Rock\" Johnson Channel"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCnZJt7yQw5IztVwe-Dscd-Q" ;;  "The Operations Room"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCO-zhhas4n_kAPHaeLe1qnQ" ;;  "The Technical Difficulties"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCV5vCi3jPJdURZwAOO_FNfQ" ;;  "The Thought Emporium"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCv3mh2P-q3UCtR9-2q8B-ZA" ;;  "The Urban Rescue Ranch"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCLDYDiIo5CmWScrENJWYJAw" ;;  "The Whitest Kids U'Know"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC8ENHE5xdFSwx71u3fDH5Xw" ;;  "ThePrimeagen"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCpFcHE36IoySjYj1Rytxyog" ;;  "TheWarOwl"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCxXqeNx2u6mLcFiPrX3-G_g" ;;  "theweeklyslap"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCUtwj-3S97bj3lYDVxDKtlQ" ;;  "TheWho"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCq8x90UTaVXcNHuWa6OQgjA" ;;  "TheWhoVEVO"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC9yt3wz-6j19RwD5m5f6HSg" ;;  "Think Twice"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCO3Qa84vVyOtEVINjOWHBPA" ;;  "This Old Crack House"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCBa659QWEk1AI4Tg--mrJ2A" ;;  "Tom Scott"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCsgWR55UyAiFarZYl1u1l9Q" ;;  "TomWoodsTV"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCxUZjZaLPsHPlp8AtkSBZiA" ;;  "Topos Institute"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCQpEJkoeMoF4zTSEEFWhvFQ" ;;  "traves"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCczKsS4gTjJzU5zayrNnwEA" ;;  "Trevor Bauer"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCbfYPyITQ-7l4upoX8nvctg" ;;  "Two Minute Papers"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCv0nF8zWevEsSVcmz6mlw6A" ;;  "vcubingx"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCHnyfMqiRRG1u-2MsSQLbXA" ;;  "Veritasium"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCautFW0hm0QPVXFVeSpSpxg" ;;  "Vivek Ramaswamy"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC6nSFpj9HTCZ5t-N3Rm3-HA" ;;  "Vsauce"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC9ZKDGCc5R67fVvLFSv-OLA" ;;  "Warrior Poet Society"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UConVfxXodg78Tzh5nNu85Ew" ;;  "Welch Labs"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCg4XK-l40KZD7fLi12pJ1YA" ;;  "Welyn"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UC3cpN6gcJQqcCM6mxRUo_dA" ;;  "Wendigoon"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCi-INxdmFSrTrT95xU0sBpg" ;;  "Wheels"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCr8gsAaPXZuG0UR-zTk9mMg" ;;  "Will It Soft Serve?"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCzOfLNkiScJp3U_h_QlvHHg" ;;  "Willjum"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCt-HTfaCUz8QIoknqyXKYiw" ;;  "Wirtual"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCIPVJoHb_A5S3kcv3TJlyEg" ;;  "WoodysGamertag"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCkedwgdDkVKZ1e92BVdW_VA" ;;  "wwwunitednuclear"
+            "https://www.youtube.com/feeds/videos.xml?channel_id=UCByBOwwOU5tKddYpsrHiUUw" ;;  "Xidnaf"
+            ))
+
+
 
     :bind
-    ("C-x w" . elfeed )) ;; Open it from anywhere.
+    ("C-x w" . elfeed)) ;; Open it from anywhere.
 
   (use-package elfeed-tube
     :after elfeed
-    :config (elfeed-tube-setup))
+    :config (elfeed-tube-setup)
+    :bind (:map elfeed-show-mode-map
+                ("F" . elfeed-tube-fetch)
+                ([remap save-buffer] . elfeed-tube-save)
+                :map elfeed-search-mode-map
+                ("F" . elfeed-tube-fetch)
+                ([remap save-buffer] . elfeed-tube-save)))
 
   (use-package elfeed-tube-mpv
-    :after elfeed-tube)
+    :after elfeed-tube
+    :bind (:map elfeed-show-mode-map
+                ("C-c C-f" . elfeed-tube-mpv-follow-mode)
+                ("C-c C-e" . elfeed-tube-mpv-where)))
 
 #+end_src
 
@@ -2204,7 +2674,7 @@ See the various epub modes: [[elisp:(describe-package 'nov)][nov]], [[elisp:(des
 
 Experimental support for browsing [[elisp:(describe-package 'scihub)][scihub]].
 
-#+begin_src emacs-lisp
+#+begin_src emacs-lisp :tangle no
 
   (use-package scihub
     :commands scihub
@@ -2218,24 +2688,22 @@ Experimental support for browsing [[elisp:(describe-package 'scihub)][scihub]].
 ** Last.fm
 
 See [[elisp:(describe-package 'lastfm)][lastfm]].
-
+       
 ** Multi-Media Control
 
-Emacs has built-in support for interacting with music players via [[elisp:(describe-package 'emms)][emms]]. Creating playlists through long folders of =youtube-dl='ed .mp3s seems to be an excellent experience. Compare to [[elisp:(describe-package 'elmpd)][elmpd]]
-and [[elisp:(describe-package 'ffmpeg-player)][ffmpeg-player]].
+Emacs has built-in support for interacting with music players via [[elisp:(describe-package 'emms)][emms]]. Creating playlists through long folders of =youtube-dl='ed .mp3s seems to be an excellent experience. Compare to [[elisp:(describe-package 'elmpd)][elmpd]] and [[elisp:(describe-package 'ffmpeg-player)][ffmpeg-player]].
 
 #+begin_src emacs-lisp
 
   (use-package emms
     :config
     (emms-all)
-    (add-to-list 'emms-player-list 'emms-player-mpd) ;; Used with the Music Player Daemon.
+    (add-to-list 'emms-player-list 'emms-player-mpv) ;; Used with the Music Player Daemon.
     :bind ;; Make Bluetooth earbud controls work with it.
     ("<XF86AudioPlay>" . emms-start)
     ("<XF86AudioPause>" . emms-pause)
     ("<XF86AudioNext>" . emms-next)
-    ("<XF86AudioNext>" . emms-previous)
-    :ensure-system-package mpd)
+    ("<XF86AudioNext>" . emms-previous))
 
 #+end_src
 
@@ -2246,10 +2714,25 @@ The [[elisp:(describe-package 'shr-tag-pre-highlight)][shr-tag-pre-highlight]] c
 
 #+begin_src emacs-lisp
 
+  (defun dnw/eww-setup ()
+    (display-line-numbers-mode -1)
+    ;; (variable-pitch-mode t)
+    (visual-line-mode t))
+
+  (defun my-eww-retrieve-with-accept-language (oldfun url callback cbargs)
+    (let ((url-request-extra-headers (cons '("Accept-Language" . "en-US")
+                                           url-request-extra-headers)))
+      (funcall oldfun url callback cbargs)))
+
   (use-package eww
+    :hook (eww-mode . dnw/eww-setup)
     :config
     (setq browse-url-browser-function 'eww-browse-url)
-    (setq eww-search-prefix "https://librex.devol.it/search.php?q="))
+    ;; (setq url-proxy-services '(("http" . "localhost:4444")
+    ;;                            ("no_proxy" . "\\(https.*\\)\\|\\(http://.*?\\.\\(com\\|org\\|net\\|edu\\|gov\\|mil\\|xyz\\|biz\\)\\)")
+    ;;                            ("socks" . "localhost:4447")))
+    (setq eww-search-prefix "https://search.functorial.xyz/search.php?q=")
+    (advice-add 'eww-retrieve :around #'my-eww-retrieve-with-accept-language))
 
   ;; Source-code highlighting for EWW et. al.
   (use-package shr-tag-pre-highlight
@@ -2264,7 +2747,7 @@ Extremely useful is the function =eww-readable= / =U=, which attempts to strip o
 
 ** Gopher and Gemini
 
-Two alternative, minimal, BASED alternatives to the Web, via one client, [[elisp:(describe-package 'elpher)][elpher]].
+Two alternative, minimal, BASED replacements for the Web, via one client, [[elisp:(describe-package 'elpher)][elpher]].
 
 #+begin_src emacs-lisp
 
@@ -2279,7 +2762,16 @@ See the [[elisp:(describe-package 'mentor)][mentor]] rTorrent client.
 
 * Finance
 
-Use =hledger= to manage money, and [[elisp:(describe-package 'ledger-import)][ledger-import]] to automatically manage its plaintext double-entry book files.
+Use =ledger= to manage money, and [[elisp:(describe-package 'ledger-import)][ledger-import]] to automatically manage its plaintext double-entry book files.
+
+#+begin_src emacs-lisp
+
+  (use-package ledger-mode)
+
+  ;; (use-package ledger-import)
+
+#+end_src
+
 
 * Runtime Performance
 
